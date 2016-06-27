@@ -9,6 +9,115 @@ Array.prototype.flatMap = function(lambda) {
 }
 
 /**
+ * 为指定数量的操作数生成合法的圆括号方案。
+ *
+ * @return 方案数组，一个元素就是一是个方案。
+ * 一个方案用一个数组来表示，一个元素就是一只括号。
+ * 一只括号也用一个数组来表示，这个数组总是有两个元素，
+ * 其中第一个数字表示该括号左边一共有多少个操作数（无视左边的其它括号），
+ * 第二个数字表示该括号的类型，6=左，9=右。
+ *
+ * TODO recursive, nest
+ */
+function parentheses(n) {
+  let results = []
+  for (var i = 0; i <= n; ++i) {
+    for (var j = i + 2; j <= n; ++j) {
+      if (j - i == n)
+        continue
+      results.push([[i, 6], [j, 9]])
+    }
+  }
+  return results
+}
+
+/**
+ * 3,6,5,9 => +++(**)-
+ */
+function visParentheses(parenthesesSpec, n) {
+  var line = ''
+  parenthesesSpec.forEach((p, i, arr) => {
+    if (i == 0 && p[0] > 0)
+      line += '+'.repeat(p[0])
+    else if (i > 0)
+      line += '*'.repeat(p[0] - arr[i - 1][0])
+    line += p[1] == 6 ? '(' : ')'
+    if (i == arr.length - 1 && p[0] < n)
+      line += '-'.repeat(n - p[0])
+  })
+  //console.log(`${parenthesesSpec} => ${line}`)
+  return line
+}
+
+function parenthesesTest() {
+  let tests = [
+    [3, '(**)-'],
+    [3, '+(**)'],
+    [6, '(**)----'],
+    [6, '(***)---'],
+    [6, '(****)--'],
+    [6, '(*****)-'],
+    [6, '+(**)---'],
+    [6, '+(***)--'],
+    [6, '+(****)-'],
+  ]
+
+  console.log('begin test parentheses()')
+  tests.forEach(d => {
+    console.log(`parentheses(${d[0]}) should be able generate ${d[1]}`)
+    console.assert(parentheses(d[0])
+        .map(ps => visParentheses(ps, d[0]))
+        .indexOf(d[1]) != -1)
+  })
+  console.log('all tests passed!')
+}
+
+function applyParentheses(parenthesesSpec, expr) {
+  var line = ''
+    var oprands = 0
+  // output content on the left of this parenthesis
+  for (var j = 0; j < expr.length; ++j) {
+    let isOperand = 'uvwxyz'.indexOf(expr[j]) != -1
+    if (isOperand) {
+      let p = parenthesesSpec.find(p => p[0] == oprands)
+      if (p && p[1] == 6)
+        line += '('
+    }
+    line += expr[j]
+    if (isOperand)
+      ++oprands
+    if (isOperand) {
+      let p = parenthesesSpec.find(p => p[0] == oprands)
+      if (p && p[1] == 9)
+        line += ')'
+    }
+  }
+  console.log(`applyParentheses(${parenthesesSpec}, ${expr}) => ${line}`)
+  return line
+}
+
+function applyParenthesesTest() {
+  let tests = [
+    [[[0, 6], [1, 9]], 'x + y / z', '(x) + y / z'],
+    [[[0, 6], [2, 9]], 'x + y / z', '(x + y) / z'],
+    [[[1, 6], [3, 9]], 'x + y / z', 'x + (y / z)'],
+    [[[0, 6], [3, 9]], 'x + y / z', '(x + y / z)'],
+    [[[0, 6], [1, 6], [3, 9], [4, 9]], 'x + y / z * w', '(x + (y / z) * w)'],
+  ]
+
+  console.log('begin test applyParentheses()')
+  tests.forEach(d => {
+    console.log(`applyParentheses(${d[0]}, ${d[1]}) should be able generate ${d[2]}`)
+    console.assert(applyParentheses(d[0], d[1]) == d[2])
+  })
+  console.log('all tests passed!')
+}
+
+parenthesesTest()
+applyParenthesesTest()
+return
+
+/**
  * 给定若干操作数，枚举合法的表达式。
  */
 function gen(operands) {
@@ -51,7 +160,7 @@ function genTest() {
 
 function findExprEnd(expr) {
   let sep = ' +-*/√()'
-  var unclosed = 0 // count of unclosed parenthesis
+  var unclosed = 0 // count of unclosed parentheses
   for (var i = 0; i < expr.length; ++i) {
     let c = expr[i]
     if (i > 0 && unclosed == 0 && sep.indexOf(c) != -1)
