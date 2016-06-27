@@ -8,16 +8,18 @@ Array.prototype.flatMap = function(lambda) {
     return Array.prototype.concat.apply([], this.map(lambda));
 }
 
-function gen(tokens) {
-  if (tokens.length == 0) return []
-  if (tokens.length == 1)
-    return [tokens[0]].concat(uniOps.map(op => op + tokens[0]))
+/**
+ * 给定若干操作数，枚举合法的表达式。
+ */
+function gen(operands) {
+  if (operands.length == 0) return []
+  if (operands.length == 1)
+    return [operands[0]].concat(uniOps.map(op => op + operands[0]))
   else {
-    var first = gen(tokens.slice(0, 1)).flatMap(t =>
+    var first = gen(operands.slice(0, 1)).flatMap(t =>
         binOps.map(op =>
           t + ' ' + op + ' '))
-    return gen(tokens.slice(1)).flatMap(rest => first.map(f => f + rest))
-
+    return gen(operands.slice(1)).flatMap(rest => first.map(f => f + rest))
   }
 }
 
