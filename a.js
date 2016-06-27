@@ -232,9 +232,14 @@ function findExprEndTest() {
 function compile(expr) {
   if (expr.length < 1) {
     return expr
-  } else if (expr[0] == '√') {
+  } else if ('√!'.indexOf(expr[0]) != -1) {
+    let funcs = {
+      '√': 'Math.sqrt',
+      '!': 'factorial',
+    }
+
     let end = findExprEnd(expr.substr(1))
-    return 'Math.sqrt(' + compile(expr.substr(1, end)) + ')' + compile(expr.substr(1 + end))
+    return funcs[expr[0]] + '(' + compile(expr.substr(1, end)) + ')' + compile(expr.substr(1 + end))
   } else {
     return expr[0] + compile(expr.substr(1))
   }
@@ -252,6 +257,7 @@ function compileTest() {
     ['(a+√(√b-c)) * 3', '(a+Math.sqrt((Math.sqrt(b)-c))) * 3'],
     ['√8 + √(8 + 8)', 'Math.sqrt(8) + Math.sqrt((8 + 8))'],
     ['8 - √√(8 + 8)', '8 - Math.sqrt(Math.sqrt((8 + 8)))'],
+    ['!x', 'factorial(x)'],
   ]
 
   console.log('begin test compile()')
@@ -331,6 +337,11 @@ function solve(inits, operands, target, binOps, uniOps, withParentheses, allowRe
 
   let results = []
   expr.forEach(e => {
+    let factorial = n => {
+      let tbl = [1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800]
+      return tbl[n]
+    }
+
     if (eval(compile(e)) == target) {
       results.push(e)
       console.log(e, '=', target)
@@ -343,7 +354,14 @@ function solveTest() {
   let binOps = '+-*/'.split('')
   let uniOpsNon = []
   let uniOps = ['-', '√']
-  let uniOps2 = ['-', '√', '√√']
+  let uniOps2 = ['-', '√', '√√', '!']
+
+  console.log('\n0 0 0 => 3')
+  console.assert(solve('x=0', 'xxx', 3, binOps, uniOps2, 1, 0).length > 0)
+
+  // TODO
+  // console.log('\n0 0 0 => 6')
+  // console.assert(solve('x=0', 'xxx', 6, binOps, uniOps2, 1, 0).length > 0)
 
   console.log('\n2 2 2 => 6')
   console.assert(solve('x=2', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
