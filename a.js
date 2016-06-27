@@ -165,6 +165,7 @@ function genTest() {
     ['xyz', 'x - (y - z)'],
     ['xyz', '√x + √(y + z)'],
     ['xyz', 'x - √√(y + z)'],
+    // ['xyz', '!(x! + y! + z!)'], // TODO
   ]
 
   console.log('begin test gen()')
