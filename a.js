@@ -96,7 +96,7 @@ function applyParentheses(parenthesesSpec, expr) {
         line += ')'
     }
   }
-  console.log(`applyParentheses(${parenthesesSpec}, ${expr}) => ${line}`)
+  //console.log(`applyParentheses(${parenthesesSpec}, ${expr}) => ${line}`)
   return line
 }
 
@@ -251,21 +251,127 @@ function compileTest() {
   console.log('all tests passed')
 }
 
+/**
+ * 解析变量初始化语句。
+ *
+ * @param inits e.g., 'x=3;y=2;z=5;...'
+ * @return a map.
+ */
+function parseVars(inits) {
+  let vals = new Map()
+  inits.split(';').forEach(init => {
+    let a = init.split('=')
+    vals.set(a[0], a[1])
+  })
+  return vals
+}
+
+/**
+ * 把表达式中的变量替换成相应的数值。
+ *
+ * @param expr e.g., "x + y - z"
+ * @param vals a map, e.g., { x -> 5, y -> 2, z -> 3 }
+ */
+function substituteVars(expr, vals) {
+  var line = ''
+  for (var i = 0; i < expr.length; ++i) {
+    if (isOperand(expr[i]))
+      line += vals.get(expr[i])
+    else
+      line += expr[i]
+  }
+  return line
+}
+
+function substituteVarsTest() {
+  let tests = [
+    ['x + y', '5 + 1'],
+    ['x * (x - y / x)', '5 * (5 - 1 / 5)'],
+  ]
+  let vals = parseVars('x=5;y=1')
+
+  console.log('begin test substituteVars()')
+  tests.forEach(d => {
+    let actual = substituteVars(d[0], vals)
+    console.log(`substituteVars(${d[0]}) should be ${d[1]}`)
+    console.assert(actual == d[1], `expect ${d[1]}, got ${actual}`)
+  })
+  console.log('all tests passed!')
+}
+
+/**
+ * 已知操作数和结果，找出算术表达式。
+ *
+ * @param inits String, 变量初始化语句的序列，参见 parseVars() 的同名参数
+ * @param operands String, 操作数序列，每个字符代表一个形参，允许重复，比如'xxy'
+ *    表示3个操作数，其中前2个相同。
+ * @param target Number, 算术表达式的结果。
+ * @param binOps String, 可用的双目运算符的序列，每个字符代表一个运算符。如 '+-/*'。
+ * @param uniOps String, 可用的单目运算符的序列，每个字符代表一个运算符。如 '-√'。
+ * @param withParentheses bool, 是否可用括号？
+ * @param allowReorder bool, 可否调整操作数的顺序？
+ */
+function solve(inits, operands, target, binOps, uniOps, withParentheses, allowReorder) {
+  let vals = parseVars(inits)
+  let expr = gen(operands.split(''), binOps, uniOps, withParentheses).map(
+      e => substituteVars(e, vals))
+  //console.log(expr.join('\n'))
+
+  let results = []
+  expr.forEach(e => {
+    if (eval(compile(e)) == target) {
+      results.push(e)
+      console.log(e, '=', target)
+    }
+  })
+  return results
+}
+
+function solveTest() {
+  console.log('\n2 2 2 => 6')
+  console.assert(solve('x=2', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+
+  console.log('\n3 3 3 => 6')
+  console.assert(solve('x=3', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+
+  console.log('\n4 4 4 => 6')
+  console.assert(solve('x=4', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+
+  console.log('\n5 5 5 => 6')
+  console.assert(solve('x=5', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+
+  console.log('\n6 6 6 => 6')
+  console.assert(solve('x=6', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+
+  console.log('\n7 7 7 => 6')
+  console.assert(solve('x=7', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+
+  // TODO
+  //console.log('\n8 8 8 => 6')
+  //console.assert(solve('x=8', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+
+  console.log('\n5 5 5 1 => 24')
+  console.assert(solve('x=5;y=1', 'xxyx', 24, '+-*/', '', 1, 0).length > 0)
+
+  // TODO
+  //console.log('\n5 5 5 1 => 24')
+  //console.assert(solve('x=5;y=1', 'xxxy', 24, '+-*/', '', 1, 1).length > 0)
+
+  console.log('\n5 5 5 1 => 25')
+  console.assert(solve('x=5;y=1', 'xxxy', 25, '+-*/', '', 1, 0).length > 0)
+
+  console.log('\n3 3 8 8 => 24')
+  console.assert(solve('x=3;y=8', 'xxyx', 24, '+-*/', '', 1, 0).length > 0)
+
+  console.log('\n2 3 4 5 => 24')
+  console.assert(solve('x=2;y=3;u=4;v=5', 'xyuv', 24, '+-*/', '', 1, 0).length > 0)
+}
+
 findExprEndTest()
 compileTest()
 parenthesesTest()
 applyParenthesesTest()
+substituteVarsTest()
 genTest()
+solveTest()
 
-let target = 24
-let x = 5
-let y = 1
-let vals = ['x', 'x', 'y', 'x']
-
-let expr = gen(vals)
-console.log(expr.join('\n'))
-
-expr.forEach(e => {
-  if (eval(compile(e)) == target)
-    console.log(e, '=', target)
-})
