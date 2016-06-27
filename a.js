@@ -72,21 +72,25 @@ function parenthesesTest() {
   console.log('all tests passed!')
 }
 
+function isOperand(str) {
+  return 'abcdefghijklmnopqrstuvwxyz'.indexOf(str) != -1
+}
+
 function applyParentheses(parenthesesSpec, expr) {
   var line = ''
     var oprands = 0
   // output content on the left of this parenthesis
   for (var j = 0; j < expr.length; ++j) {
-    let isOperand = 'uvwxyz'.indexOf(expr[j]) != -1
-    if (isOperand) {
+    let isOpd = isOperand(expr[j])
+    if (isOpd) {
       let p = parenthesesSpec.find(p => p[0] == oprands)
       if (p && p[1] == 6)
         line += '('
     }
     line += expr[j]
-    if (isOperand)
+    if (isOpd)
       ++oprands
-    if (isOperand) {
+    if (isOpd) {
       let p = parenthesesSpec.find(p => p[0] == oprands)
       if (p && p[1] == 9)
         line += ')'
@@ -113,25 +117,45 @@ function applyParenthesesTest() {
   console.log('all tests passed!')
 }
 
-parenthesesTest()
-applyParenthesesTest()
-return
+
+/**
+ * 给定若干操作数，枚举合法的表达式，不含括号。
+ *
+ * @param binOps e.g., '+-/*'
+ * @param uniOps e.g., '-√'
+ */
+function _gen(operands, binOps, uniOps) {
+
+  if (operands.length == 0) return []
+  if (operands.length == 1)
+    return [operands[0]].concat(uniOps.split('').map(op => op + operands[0]))
+  else {
+    var first = _gen(operands.slice(0, 1), binOps, uniOps).flatMap(t =>
+        binOps.split('').map(op =>
+          t + ' ' + op + ' '))
+    return _gen(operands.slice(1), binOps, uniOps).flatMap(rest =>
+        first.map(f => f + rest))
+  }
+}
 
 /**
  * 给定若干操作数，枚举合法的表达式。
  */
-function gen(operands) {
-  let binOps = ['+', '-', '*', '/']
-  let uniOps = ['-', '√']
+function gen(operands, binOps, uniOps, withParentheses) {
+  if (!binOps)
+    binOps = '+-*/'
+  if (!uniOps)
+    uniOps = ''
+  if (typeof withParentheses == 'undefined')
+    withParentheses = true
 
-  if (operands.length == 0) return []
-  if (operands.length == 1)
-    return [operands[0]].concat(uniOps.map(op => op + operands[0]))
-  else {
-    var first = gen(operands.slice(0, 1)).flatMap(t =>
-        binOps.map(op =>
-          t + ' ' + op + ' '))
-    return gen(operands.slice(1)).flatMap(rest => first.map(f => f + rest))
+  let exprs = _gen(operands, binOps, uniOps)
+  if (withParentheses) {
+    let pss = parentheses(operands.length)
+      return exprs.concat(exprs.flatMap(expr =>
+            pss.map(ps => applyParentheses(ps, expr))))
+  } else {
+    return exprs
   }
 }
 
@@ -145,14 +169,14 @@ function genTest() {
     ['xy', '-x / y'],
     ['xyz', 'x + y + z'],
     ['xyz', 'x + y - z'],
-    // ['xyz', 'x - (y - z)'],
+    ['xyz', 'x - (y - z)'],
   ]
 
   console.log('begin test gen()')
 
   tests.forEach(i => {
     console.log(i[0], 'should be able to generate', i[1])
-    console.assert(gen(i[0].split('')).indexOf(i[1]) != -1)
+    console.assert(gen(i[0].split(''), '+-*/', '-√', -true).indexOf(i[1]) != -1)
   })
 
   console.log('all tests passed!')
@@ -229,11 +253,14 @@ function compileTest() {
 
 findExprEndTest()
 compileTest()
+parenthesesTest()
+applyParenthesesTest()
 genTest()
 
-let target = 6
+let target = 24
 let x = 5
-let vals = ['x', 'x', 'x']
+let y = 1
+let vals = ['x', 'x', 'y', 'x']
 
 let expr = gen(vals)
 console.log(expr.join('\n'))
