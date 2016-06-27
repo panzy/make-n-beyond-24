@@ -122,11 +122,11 @@ return
  */
 function gen(operands) {
   let binOps = ['+', '-', '*', '/']
-  let uniOps = ['', '-', '√']
+  let uniOps = ['-', '√']
 
   if (operands.length == 0) return []
   if (operands.length == 1)
-    return uniOps.map(op => op + operands[0])
+    return [operands[0]].concat(uniOps.map(op => op + operands[0]))
   else {
     var first = gen(operands.slice(0, 1)).flatMap(t =>
         binOps.map(op =>
