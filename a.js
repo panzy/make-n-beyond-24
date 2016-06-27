@@ -121,17 +121,17 @@ function applyParenthesesTest() {
 /**
  * 给定若干操作数，枚举合法的表达式，不含括号。
  *
- * @param binOps e.g., '+-/*'
- * @param uniOps e.g., '-√'
+ * @param binOps e.g., ['+', '-', '*', '/']
+ * @param uniOps e.g., ['-', '√', '√√']
  */
 function _gen(operands, binOps, uniOps) {
 
   if (operands.length == 0) return []
   if (operands.length == 1)
-    return [operands[0]].concat(uniOps.split('').map(op => op + operands[0]))
+    return [operands[0]].concat(uniOps.map(op => op + operands[0]))
   else {
     var first = _gen(operands.slice(0, 1), binOps, uniOps).flatMap(t =>
-        binOps.split('').map(op =>
+        binOps.map(op =>
           t + ' ' + op + ' '))
     return _gen(operands.slice(1), binOps, uniOps).flatMap(rest =>
         first.map(f => f + rest))
@@ -142,13 +142,6 @@ function _gen(operands, binOps, uniOps) {
  * 给定若干操作数，枚举合法的表达式。
  */
 function gen(operands, binOps, uniOps, withParentheses) {
-  if (!binOps)
-    binOps = '+-*/'
-  if (!uniOps)
-    uniOps = ''
-  if (typeof withParentheses == 'undefined')
-    withParentheses = true
-
   let exprs = _gen(operands, binOps, uniOps)
   if (withParentheses) {
     let pss = parentheses(operands.length)
@@ -176,9 +169,11 @@ function genTest() {
 
   console.log('begin test gen()')
 
+  let binOps = '+-*/'.split('')
+  let uniOps = ['-', '√', '√√']
   tests.forEach(i => {
     console.log(i[0], 'should be able to generate', i[1])
-    console.assert(gen(i[0].split(''), '+-*/', '-√', -true).indexOf(i[1]) != -1)
+    console.assert(gen(i[0].split(''), binOps, uniOps, -true).indexOf(i[1]) != -1)
   })
 
   console.log('all tests passed!')
@@ -228,7 +223,12 @@ function findExprEndTest() {
   console.log('all tests passed')
 }
 
-/** compile math to JavaScript expression. */
+/** compile math to JavaScript expression.
+ *
+ * supported math operator:
+ * - √: Math.sqrt
+ * - ∠: ?
+ * */
 function compile(expr) {
   if (expr.length < 1) {
     return expr
@@ -318,8 +318,8 @@ function substituteVarsTest() {
  * @param operands String, 操作数序列，每个字符代表一个形参，允许重复，比如'xxy'
  *    表示3个操作数，其中前2个相同。
  * @param target Number, 算术表达式的结果。
- * @param binOps String, 可用的双目运算符的序列，每个字符代表一个运算符。如 '+-/*'。
- * @param uniOps String, 可用的单目运算符的序列，每个字符代表一个运算符。如 '-√'。
+ * @param binOps Array, 可用的双目运算符的序列。
+ * @param uniOps Array, 可用的单目运算符的序列。
  * @param withParentheses bool, 是否可用括号？
  * @param allowReorder bool, 可否调整操作数的顺序？
  */
@@ -340,43 +340,48 @@ function solve(inits, operands, target, binOps, uniOps, withParentheses, allowRe
 }
 
 function solveTest() {
+  let binOps = '+-*/'.split('')
+  let uniOpsNon = []
+  let uniOps = ['-', '√']
+  let uniOps2 = ['-', '√', '√√']
+
   console.log('\n2 2 2 => 6')
-  console.assert(solve('x=2', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+  console.assert(solve('x=2', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
 
   console.log('\n3 3 3 => 6')
-  console.assert(solve('x=3', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+  console.assert(solve('x=3', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
 
   console.log('\n4 4 4 => 6')
-  console.assert(solve('x=4', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+  console.assert(solve('x=4', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
 
   console.log('\n5 5 5 => 6')
-  console.assert(solve('x=5', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+  console.assert(solve('x=5', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
 
   console.log('\n6 6 6 => 6')
-  console.assert(solve('x=6', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+  console.assert(solve('x=6', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
 
   console.log('\n7 7 7 => 6')
-  console.assert(solve('x=7', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+  console.assert(solve('x=7', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
 
   // TODO
-  //console.log('\n8 8 8 => 6')
-  //console.assert(solve('x=8', 'xxx', 6, '+-*/', '√', 1, 0).length > 0)
+  console.log('\n8 8 8 => 6')
+  console.assert(solve('x=8', 'xxx', 6, binOps, uniOps2, 1, 0).length > 0)
 
   console.log('\n5 5 5 1 => 24')
-  console.assert(solve('x=5;y=1', 'xxyx', 24, '+-*/', '', 1, 0).length > 0)
+  console.assert(solve('x=5;y=1', 'xxyx', 24, binOps, uniOpsNon, 1, 0).length > 0)
 
   // TODO
   //console.log('\n5 5 5 1 => 24')
-  //console.assert(solve('x=5;y=1', 'xxxy', 24, '+-*/', '', 1, 1).length > 0)
+  //console.assert(solve('x=5;y=1', 'xxxy', 24, binOps, uniOpsNon, 1, 1).length > 0)
 
   console.log('\n5 5 5 1 => 25')
-  console.assert(solve('x=5;y=1', 'xxxy', 25, '+-*/', '', 1, 0).length > 0)
+  console.assert(solve('x=5;y=1', 'xxxy', 25, binOps, uniOpsNon, 1, 0).length > 0)
 
   console.log('\n3 3 8 8 => 24')
-  console.assert(solve('x=3;y=8', 'xxyx', 24, '+-*/', '', 1, 0).length > 0)
+  console.assert(solve('x=3;y=8', 'xxyx', 24, binOps, uniOpsNon, 1, 0).length > 0)
 
   console.log('\n2 3 4 5 => 24')
-  console.assert(solve('x=2;y=3;u=4;v=5', 'xyuv', 24, '+-*/', '', 1, 0).length > 0)
+  console.assert(solve('x=2;y=3;u=4;v=5', 'xyuv', 24, binOps, uniOpsNon, 1, 0).length > 0)
 }
 
 findExprEndTest()
