@@ -73,7 +73,7 @@ function parenthesesTest() {
 }
 
 function isOperand(str) {
-  return 'abcdefghijklmnopqrstuvwxyz'.indexOf(str) != -1
+  return 'abcdefghijklmnopqrstuvwxyz0123456789'.indexOf(str) != -1
 }
 
 function applyParentheses(parenthesesSpec, expr) {
@@ -170,6 +170,8 @@ function genTest() {
     ['xyz', 'x + y + z'],
     ['xyz', 'x + y - z'],
     ['xyz', 'x - (y - z)'],
+    ['xyz', '√x + √(y + z)'],
+    ['xyz', 'x - √√(y + z)'],
   ]
 
   console.log('begin test gen()')
@@ -185,9 +187,12 @@ function genTest() {
 function findExprEnd(expr) {
   let sep = ' +-*/√()'
   var unclosed = 0 // count of unclosed parentheses
+  var operands = 0 // count of operands
   for (var i = 0; i < expr.length; ++i) {
     let c = expr[i]
-    if (i > 0 && unclosed == 0 && sep.indexOf(c) != -1)
+    if (isOperand(c))
+      ++operands
+    if (operands > 0 && unclosed == 0 && sep.indexOf(c) != -1)
       return i
     if (c == '(')
       ++unclosed
@@ -207,6 +212,11 @@ function findExprEndTest() {
     ['(a+(b-c)) * 3', 9],
     ['(a+(b-c) / 4) * 3', 13],
     ['(√b-c)) * 3', 6],
+    ['√b', 2],
+    ['√b + c', 2],
+    ['√b + √c', 2],
+    ['√√b', 3],
+    ['√(√b-c)) * 3', 7],
   ]
 
   console.log('begin test findExprEnd()')
@@ -240,6 +250,8 @@ function compileTest() {
     ['√d/√(a+√b)*c', 'Math.sqrt(d)/Math.sqrt((a+Math.sqrt(b)))*c'],
     ['√d2/(a+b)*c', 'Math.sqrt(d2)/(a+b)*c'],
     ['(a+√(√b-c)) * 3', '(a+Math.sqrt((Math.sqrt(b)-c))) * 3'],
+    ['√8 + √(8 + 8)', 'Math.sqrt(8) + Math.sqrt((8 + 8))'],
+    ['8 - √√(8 + 8)', '8 - Math.sqrt(Math.sqrt((8 + 8)))'],
   ]
 
   console.log('begin test compile()')
