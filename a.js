@@ -12,6 +12,9 @@ Array.prototype.flatMap = function(lambda) {
  * 给定若干操作数，枚举合法的表达式。
  */
 function gen(operands) {
+  let binOps = ['+', '-', '*', '/']
+  let uniOps = ['-', '√']
+
   if (operands.length == 0) return []
   if (operands.length == 1)
     return [operands[0]].concat(uniOps.map(op => op + operands[0]))
@@ -21,6 +24,29 @@ function gen(operands) {
           t + ' ' + op + ' '))
     return gen(operands.slice(1)).flatMap(rest => first.map(f => f + rest))
   }
+}
+
+function genTest() {
+  let tests = [
+    ['xy', 'x + y'],
+    ['xy', 'x - y'],
+    ['xy', 'x * y'],
+    ['xy', 'x / y'],
+    ['xy', '-x / √y'],
+    ['xy', '-x / y'],
+    ['xyz', 'x + y + z'],
+    ['xyz', 'x + y - z'],
+    // ['xyz', 'x - (y - z)'],
+  ]
+
+  console.log('begin test gen()')
+
+  tests.forEach(i => {
+    console.log(i[0], 'should be able to generate', i[1])
+    console.assert(gen(i[0].split('')).indexOf(i[1]) != -1)
+  })
+
+  console.log('all tests passed!')
 }
 
 function findExprEnd(expr) {
@@ -39,7 +65,7 @@ function findExprEnd(expr) {
 }
 
 function findExprEndTest() {
-  let data = [
+  let tests = [
     ['(a+b)*c', 5],
     ['(a+b) *c', 5],
     ['(a+b ) *c', 6],
@@ -51,7 +77,7 @@ function findExprEndTest() {
   ]
 
   console.log('begin test findExprEnd()')
-  data.forEach(i => {
+  tests.forEach(i => {
     let actual = findExprEnd(i[0])
     console.log(i[0], '=>', i[1])
     console.assert(actual == i[1], `expect ${i[1]}, got ${actual}`)
@@ -72,7 +98,7 @@ function compile(expr) {
 }
 
 function compileTest() {
-  let data = [
+  let tests = [
     ['(a+b)*c', '(a+b)*c'],
     ['√(a+b) *c', 'Math.sqrt((a+b)) *c'],
     ['√(a+√b)', 'Math.sqrt((a+Math.sqrt(b)))'],
@@ -84,7 +110,7 @@ function compileTest() {
   ]
 
   console.log('begin test compile()')
-  data.forEach(i => {
+  tests.forEach(i => {
     let actual = compile(i[0])
     console.log(i[0], '=>', i[1])
     console.assert(actual == i[1], `expect ${i[1]}, got ${actual}`)
@@ -92,11 +118,13 @@ function compileTest() {
   console.log('all tests passed')
 }
 
+findExprEndTest()
+compileTest()
+genTest()
+
 let target = 6
 let x = 5
-let vals = ['x', 'x', 'x', 1]
-let binOps = ['+', '-', '*', '/']
-let uniOps = ['-', '√']
+let vals = ['x', 'x', 'x']
 
 let expr = gen(vals)
 console.log(expr.join('\n'))
