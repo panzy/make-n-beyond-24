@@ -178,18 +178,18 @@ function extractSubExprsTest() {
  * @param operands String, 操作数序列，每个字符代表一个形参，允许重复，比如'xxy'
  *    表示3个操作数，其中前2个相同。
  * @param binOps Array, 可用的双目运算符的序列，如 ['+', '-', '*', '/']。
- * @param uniOps Array, 可用的单目运算符的序列，如 ['-', '√', '√√']。
+ * @param unaryOps Array, 可用的单目运算符的序列，如 ['-', '√', '√√']。
  */
-function _gen(operands, binOps, uniOps) {
+function _gen(operands, binOps, unaryOps) {
 
   if (operands.length == 0) return []
   if (operands.length == 1)
-    return [operands[0]].concat(uniOps.map(op => op + operands[0]))
+    return [operands[0]].concat(unaryOps.map(op => op + operands[0]))
   else {
-    var first = _gen(operands.slice(0, 1), binOps, uniOps).flatMap(t =>
+    var first = _gen(operands.slice(0, 1), binOps, unaryOps).flatMap(t =>
         binOps.map(op =>
           t + ' ' + op + ' '))
-    return _gen(operands.slice(1), binOps, uniOps).flatMap(rest =>
+    return _gen(operands.slice(1), binOps, unaryOps).flatMap(rest =>
         first.map(f => f + rest))
   }
 }
@@ -199,10 +199,10 @@ function _gen(operands, binOps, uniOps) {
  *
  * @param operands String, 操作数序列，参见 _gen() 的同名参数。
  * @param binOps Array, 可用的双目运算符的序列，参见 _gen() 的同名参数。
- * @param uniOps Array, 可用的单目运算符的序列，参见 _gen() 的同名参数。
+ * @param unaryOps Array, 可用的单目运算符的序列，参见 _gen() 的同名参数。
  */
-function gen(operands, binOps, uniOps, withParentheses) {
-  let exprs = _gen(operands, binOps, uniOps)
+function gen(operands, binOps, unaryOps, withParentheses) {
+  let exprs = _gen(operands, binOps, unaryOps)
   if (withParentheses) {
     let pss = parentheses(operands.length)
       return exprs.concat(exprs.flatMap(expr =>
@@ -231,10 +231,10 @@ function genTest() {
   console.log('begin test gen()')
 
   let binOps = '+-*/'.split('')
-  let uniOps = ['-', '√', '√√']
+  let unaryOps = ['-', '√', '√√']
   tests.forEach(i => {
     console.log(i[0], 'should be able to generate', i[1])
-    console.assert(gen(i[0].split(''), binOps, uniOps, -true).indexOf(i[1]) != -1)
+    console.assert(gen(i[0].split(''), binOps, unaryOps, -true).indexOf(i[1]) != -1)
   })
 
   console.log('all tests passed!')
@@ -385,13 +385,13 @@ function substituteVarsTest() {
  * @param operands String, 操作数序列，参见 gen() 的同名参数。
  * @param target Number, 算术表达式的结果。
  * @param binOps Array, 可用的双目运算符的序列，参见 gen() 的同名参数。
- * @param uniOps Array, 可用的单目运算符的序列，参见 gen() 的同名参数。
+ * @param unaryOps Array, 可用的单目运算符的序列，参见 gen() 的同名参数。
  * @param withParentheses bool, 是否可用括号？
  * @param allowReorder bool, 可否调整操作数的顺序？
  */
-function solve(inits, operands, target, binOps, uniOps, withParentheses, allowReorder) {
+function solve(inits, operands, target, binOps, unaryOps, withParentheses, allowReorder) {
   let vals = parseVars(inits)
-  let expr = gen(operands.split(''), binOps, uniOps, withParentheses).map(
+  let expr = gen(operands.split(''), binOps, unaryOps, withParentheses).map(
       e => substituteVars(e, vals))
   //console.log(expr.join('\n'))
 
@@ -412,54 +412,54 @@ function solve(inits, operands, target, binOps, uniOps, withParentheses, allowRe
 
 function solveTest() {
   let binOps = '+-*/'.split('')
-  let uniOpsNon = []
-  let uniOps = ['-', '√']
-  let uniOps2 = ['-', '√', '√√', '!']
+  let unaryOpsNon = []
+  let unaryOps = ['-', '√']
+  let unaryOps2 = ['-', '√', '√√', '!']
 
   console.log('\n0 0 0 => 3')
-  console.assert(solve('x=0', 'xxx', 3, binOps, uniOps2, 1, 0).length > 0)
+  console.assert(solve('x=0', 'xxx', 3, binOps, unaryOps2, 1, 0).length > 0)
 
   // TODO
   // console.log('\n0 0 0 => 6')
-  // console.assert(solve('x=0', 'xxx', 6, binOps, uniOps2, 1, 0).length > 0)
+  // console.assert(solve('x=0', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
 
   console.log('\n2 2 2 => 6')
-  console.assert(solve('x=2', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
+  console.assert(solve('x=2', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
 
   console.log('\n3 3 3 => 6')
-  console.assert(solve('x=3', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
+  console.assert(solve('x=3', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
 
   console.log('\n4 4 4 => 6')
-  console.assert(solve('x=4', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
+  console.assert(solve('x=4', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
 
   console.log('\n5 5 5 => 6')
-  console.assert(solve('x=5', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
+  console.assert(solve('x=5', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
 
   console.log('\n6 6 6 => 6')
-  console.assert(solve('x=6', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
+  console.assert(solve('x=6', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
 
   console.log('\n7 7 7 => 6')
-  console.assert(solve('x=7', 'xxx', 6, binOps, uniOps, 1, 0).length > 0)
+  console.assert(solve('x=7', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
 
   // TODO
   console.log('\n8 8 8 => 6')
-  console.assert(solve('x=8', 'xxx', 6, binOps, uniOps2, 1, 0).length > 0)
+  console.assert(solve('x=8', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
 
   console.log('\n5 5 5 1 => 24')
-  console.assert(solve('x=5;y=1', 'xxyx', 24, binOps, uniOpsNon, 1, 0).length > 0)
+  console.assert(solve('x=5;y=1', 'xxyx', 24, binOps, unaryOpsNon, 1, 0).length > 0)
 
   // TODO
   //console.log('\n5 5 5 1 => 24')
-  //console.assert(solve('x=5;y=1', 'xxxy', 24, binOps, uniOpsNon, 1, 1).length > 0)
+  //console.assert(solve('x=5;y=1', 'xxxy', 24, binOps, unaryOpsNon, 1, 1).length > 0)
 
   console.log('\n5 5 5 1 => 25')
-  console.assert(solve('x=5;y=1', 'xxxy', 25, binOps, uniOpsNon, 1, 0).length > 0)
+  console.assert(solve('x=5;y=1', 'xxxy', 25, binOps, unaryOpsNon, 1, 0).length > 0)
 
   console.log('\n3 3 8 8 => 24')
-  console.assert(solve('x=3;y=8', 'xxyx', 24, binOps, uniOpsNon, 1, 0).length > 0)
+  console.assert(solve('x=3;y=8', 'xxyx', 24, binOps, unaryOpsNon, 1, 0).length > 0)
 
   console.log('\n2 3 4 5 => 24')
-  console.assert(solve('x=2;y=3;u=4;v=5', 'xyuv', 24, binOps, uniOpsNon, 1, 0).length > 0)
+  console.assert(solve('x=2;y=3;u=4;v=5', 'xyuv', 24, binOps, unaryOpsNon, 1, 0).length > 0)
 }
 
 findExprEndTest()
