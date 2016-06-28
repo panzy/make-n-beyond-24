@@ -76,6 +76,10 @@ function isOperand(str) {
   return 'abcdefghijklmnopqrstuvwxyz0123456789'.indexOf(str) != -1
 }
 
+function isUnaryOp(c) {
+  return '-!√'.indexOf(c) != -1
+}
+
 function applyParentheses(parenthesesSpec, expr) {
   var line = ''
     var oprands = 0
@@ -113,6 +117,57 @@ function applyParenthesesTest() {
   tests.forEach(d => {
     console.log(`applyParentheses(${d[0]}, ${d[1]}) should be able generate ${d[2]}`)
     console.assert(applyParentheses(d[0], d[1]) == d[2])
+  })
+  console.log('all tests passed!')
+}
+
+/**
+ * 把表达式中的子表达式抽取为变量，使原表达式更简单。如
+ *
+ * x + √(y / z) => x + a;a=√(y / z)
+ */
+function extractSubExprs(expr) {
+  var varNames = 'abcdefghijklmn'
+  var line = ''
+  var nextVarIdx = 0
+  var map = {} // var -> sub expr
+  for (var i = 0; i < expr.length;) {
+    let c = expr[i]
+    if (c == '(' || isUnaryOp(c)) {
+
+      while (nextVarIdx < varNames.length &&
+          expr.indexOf(varNames[nextVarIdx]) != -1)
+        ++nextVarIdx
+
+      let j = findExprEnd(expr.slice(i))
+      line += varNames[nextVarIdx]
+      map[varNames[nextVarIdx]] = expr.slice(i, i + j)
+      ++nextVarIdx
+      i += j
+    } else {
+      line += c
+      ++i
+    }
+  }
+  return {expr: line, map: map}
+}
+
+function extractSubExprsTest() {
+  let tests = [
+    ['x + (y / z)', 'x + a;a=(y / z)'],
+    ['(x + y) / z', 'a / z;a=(x + y)'],
+    ['x + √(y / z)', 'x + a;a=√(y / z)'],
+    ['√(x + y) / z', 'a / z;a=√(x + y)'],
+    ['√(a + b) / z', 'c / z;c=√(a + b)'], // test var name conflict
+  ]
+
+  console.log('begin test extractSubExprs()')
+  tests.forEach(d => {
+    console.log(`extractSubExprs(${d[0]}) should generate ${d[1]}`)
+    let obj = extractSubExprs(d[0])
+    let actual = obj.expr
+    Object.keys(obj.map).forEach(key => actual += ';' + key + '=' + obj.map[key])
+    console.assert(actual == d[1], `expect ${d[1]}, got ${actual}`)
   })
   console.log('all tests passed!')
 }
@@ -408,6 +463,7 @@ function solveTest() {
 }
 
 findExprEndTest()
+extractSubExprsTest()
 compileTest()
 parenthesesTest()
 applyParenthesesTest()
