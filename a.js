@@ -122,9 +122,36 @@ function applyParenthesesTest() {
 }
 
 /**
+ * '(a+b)*c' -> 'abc'
+ */
+function extractOperands(expr) {
+  return expr.split('').map(c => isOperand(c) ? c : '').filter(c => c != '').join('')
+}
+
+function extractOperandsTest() {
+  let tests = [
+    ['(a+b)*c', 'abc'],
+    ['(a+b ) *c', 'abc'],
+    ['√(√b-c)) * 3', 'bc3'],
+    ['-a * -z', 'az'],
+  ]
+
+  console.log('begin test extractOperands()')
+  tests.forEach(i => {
+    let actual = extractOperands(i[0])
+    console.log(i[0], '=>', i[1])
+    console.assert(actual == i[1], `expect ${i[1]}, got ${actual}`)
+  })
+  console.log('all tests passed')
+}
+
+/**
  * 把表达式中的子表达式抽取为变量，使原表达式更简单。如
  *
  * x + √(y / z) => x + a;a=√(y / z)
+ *
+ * @param expr String, e.g., 'x + √(y / z)'
+ * @return {expr: 'x + a', map: {a: '√(y / z)'}}
  */
 function extractSubExprs(expr) {
   var varNames = 'abcdefghijklmn'
@@ -133,7 +160,7 @@ function extractSubExprs(expr) {
   var map = {} // var -> sub expr
   for (var i = 0; i < expr.length;) {
     let c = expr[i]
-    if (c == '(' || isUnaryOp(c)) {
+    if (c == '(' || (isUnaryOp(c) && c != '-'/* FIXME 由于 '-' 同时也是双目运算符...*/)) {
 
       while (nextVarIdx < varNames.length &&
           expr.indexOf(varNames[nextVarIdx]) != -1)
@@ -149,16 +176,21 @@ function extractSubExprs(expr) {
       ++i
     }
   }
-  return {expr: line, map: map}
+  return {src: expr, expr: line, map: map}
 }
 
 function extractSubExprsTest() {
   let tests = [
+    ['x + y / z', 'x + y / z'],
+    ['x - y / z', 'x - y / z'],
+    ['(x - y / z)', 'a;a=(x - y / z)'],
     ['x + (y / z)', 'x + a;a=(y / z)'],
     ['(x + y) / z', 'a / z;a=(x + y)'],
     ['x + √(y / z)', 'x + a;a=√(y / z)'],
+    ['x - √(y + z)', 'x - a;a=√(y + z)'],
     ['√(x + y) / z', 'a / z;a=√(x + y)'],
     ['√(a + b) / z', 'c / z;c=√(a + b)'], // test var name conflict
+    ['x - y + (u - v)', 'x - y + a;a=(u - v)'],
   ]
 
   console.log('begin test extractSubExprs()')
@@ -178,7 +210,7 @@ function extractSubExprsTest() {
  * @param operands String, 操作数序列，每个字符代表一个形参，允许重复，比如'xxy'
  *    表示3个操作数，其中前2个相同。
  * @param binOps Array, 可用的双目运算符的序列，如 ['+', '-', '*', '/']。
- * @param unaryOps Array, 可用的单目运算符的序列，如 ['-', '√', '√√']。
+ * @param unaryOps Array, 可用的单目运算符的序列，如 ['-', '√', '!']。
  */
 function _gen(operands, binOps, unaryOps) {
 
@@ -195,13 +227,17 @@ function _gen(operands, binOps, unaryOps) {
 }
 
 /**
- * 给定若干操作数，枚举合法的表达式。
+ * 给定若干操作数，枚举合法的表达式。不会对子表达式进一步应用运算符，比如
+ *
+ * x, y, z => x * √(y + z) => x * √√(y + z)
+ *
+ * 其中第二步转换需要把 √(y + z) 视为整体。
  *
  * @param operands String, 操作数序列，参见 _gen() 的同名参数。
  * @param binOps Array, 可用的双目运算符的序列，参见 _gen() 的同名参数。
  * @param unaryOps Array, 可用的单目运算符的序列，参见 _gen() 的同名参数。
  */
-function gen(operands, binOps, unaryOps, withParentheses) {
+function _gen2(operands, binOps, unaryOps, withParentheses) {
   let exprs = _gen(operands, binOps, unaryOps)
   if (withParentheses) {
     let pss = parentheses(operands.length)
@@ -212,10 +248,42 @@ function gen(operands, binOps, unaryOps, withParentheses) {
   }
 }
 
+/**
+ * 给定若干操作数，枚举合法的表达式。会对子表达式进一步应用运算符，比如
+ *
+ * A. x, y, z => x * √(y + z) => x * √(y + z)
+ * B. x, y => !x + !y => !(!x + !y)
+ *
+ * 目前这个动作不会递归。
+ *
+ * @param operands String, 操作数序列，参见 _gen() 的同名参数。
+ * @param binOps Array, 可用的双目运算符的序列，参见 _gen() 的同名参数。
+ * @param unaryOps Array, 可用的单目运算符的序列，参见 _gen() 的同名参数。
+ */
+function gen(operands, binOps, unaryOps, withParentheses) {
+  let exprs = _gen2(operands, binOps, unaryOps, withParentheses)
+  let exprs2 = exprs.flatMap(expr => {
+    return [extractSubExprs(expr), extractSubExprs('(' + expr + ')')].flatMap(em => {
+      if (em.map != {}) {
+        let exprs3 = _gen(extractOperands(em.expr), binOps, unaryOps)
+        // TODO TOO many duplicated exprs
+        return exprs3.map(e => substituteVars(e, em.map))
+      } else {
+        return []
+      }
+    })
+  })
+  return exprs.concat(exprs2)
+}
+
 function genTest() {
   let tests = [
+    ['xy', '!(!x + !y)'],
+    ['x', '!x'],
+    ['x', '!!x'],
     ['xy', 'x + y'],
     ['xy', 'x - y'],
+    ['xa', 'x - √a'],
     ['xy', 'x * y'],
     ['xy', 'x / y'],
     ['xy', '-x / √y'],
@@ -224,17 +292,20 @@ function genTest() {
     ['xyz', 'x + y - z'],
     ['xyz', 'x - (y - z)'],
     ['xyz', '√x + √(y + z)'],
+    ['xyz', 'x - √(y + z)'],
     ['xyz', 'x - √√(y + z)'],
-    // ['xyz', '!(x! + y! + z!)'], // TODO
+    ['xyz', '!x + !y + !z'],
+    ['xyz', '!(!x + !y + !z)'],
   ]
 
   console.log('begin test gen()')
 
   let binOps = '+-*/'.split('')
-  let unaryOps = ['-', '√', '√√']
+  let unaryOps = ['-', '√', '!']
   tests.forEach(i => {
+    let exprs = gen(i[0].split(''), binOps, unaryOps, -true)
     console.log(i[0], 'should be able to generate', i[1])
-    console.assert(gen(i[0].split(''), binOps, unaryOps, -true).indexOf(i[1]) != -1)
+    console.assert(exprs.indexOf(i[1]) != -1)
   })
 
   console.log('all tests passed!')
@@ -354,7 +425,7 @@ function parseVars(inits) {
 function substituteVars(expr, vals) {
   var line = ''
   for (var i = 0; i < expr.length; ++i) {
-    if (isOperand(expr[i]))
+    if (isOperand(expr[i]) && vals.hasOwnProperty(expr[i]))
       line += vals[expr[i]]
     else
       line += expr[i]
@@ -366,6 +437,7 @@ function substituteVarsTest() {
   let tests = [
     ['x + y', '5 + 1'],
     ['x * (x - y / x)', '5 * (5 - 1 / 5)'],
+    ['x * w', '5 * w'],
   ]
   let vals = parseVars('x=5;y=1')
 
@@ -414,14 +486,13 @@ function solveTest() {
   let binOps = '+-*/'.split('')
   let unaryOpsNon = []
   let unaryOps = ['-', '√']
-  let unaryOps2 = ['-', '√', '√√', '!']
+  let unaryOps2 = ['-', '√', '!']
 
   console.log('\n0 0 0 => 3')
   console.assert(solve('x=0', 'xxx', 3, binOps, unaryOps2, 1, 0).length > 0)
 
-  // TODO
-  // console.log('\n0 0 0 => 6')
-  // console.assert(solve('x=0', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
+  console.log('\n0 0 0 => 6')
+  console.assert(solve('x=0', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
 
   console.log('\n2 2 2 => 6')
   console.assert(solve('x=2', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
@@ -441,9 +512,8 @@ function solveTest() {
   console.log('\n7 7 7 => 6')
   console.assert(solve('x=7', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
 
-  // TODO
   console.log('\n8 8 8 => 6')
-  console.assert(solve('x=8', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
+  console.assert(solve('x=8', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
 
   console.log('\n5 5 5 1 => 24')
   console.assert(solve('x=5;y=1', 'xxyx', 24, binOps, unaryOpsNon, 1, 0).length > 0)
@@ -463,6 +533,7 @@ function solveTest() {
 }
 
 findExprEndTest()
+extractOperandsTest()
 extractSubExprsTest()
 compileTest()
 parenthesesTest()
