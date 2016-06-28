@@ -117,12 +117,13 @@ function applyParenthesesTest() {
   console.log('all tests passed!')
 }
 
-
 /**
  * 给定若干操作数，枚举合法的表达式，不含括号。
  *
- * @param binOps e.g., ['+', '-', '*', '/']
- * @param uniOps e.g., ['-', '√', '√√']
+ * @param operands String, 操作数序列，每个字符代表一个形参，允许重复，比如'xxy'
+ *    表示3个操作数，其中前2个相同。
+ * @param binOps Array, 可用的双目运算符的序列，如 ['+', '-', '*', '/']。
+ * @param uniOps Array, 可用的单目运算符的序列，如 ['-', '√', '√√']。
  */
 function _gen(operands, binOps, uniOps) {
 
@@ -140,6 +141,10 @@ function _gen(operands, binOps, uniOps) {
 
 /**
  * 给定若干操作数，枚举合法的表达式。
+ *
+ * @param operands String, 操作数序列，参见 _gen() 的同名参数。
+ * @param binOps Array, 可用的双目运算符的序列，参见 _gen() 的同名参数。
+ * @param uniOps Array, 可用的单目运算符的序列，参见 _gen() 的同名参数。
  */
 function gen(operands, binOps, uniOps, withParentheses) {
   let exprs = _gen(operands, binOps, uniOps)
@@ -321,12 +326,11 @@ function substituteVarsTest() {
 /**
  * 已知操作数和结果，找出算术表达式。
  *
- * @param inits String, 变量初始化语句的序列，参见 parseVars() 的同名参数
- * @param operands String, 操作数序列，每个字符代表一个形参，允许重复，比如'xxy'
- *    表示3个操作数，其中前2个相同。
+ * @param inits String, 变量初始化语句的序列，参见 parseVars() 的同名参数。
+ * @param operands String, 操作数序列，参见 gen() 的同名参数。
  * @param target Number, 算术表达式的结果。
- * @param binOps Array, 可用的双目运算符的序列。
- * @param uniOps Array, 可用的单目运算符的序列。
+ * @param binOps Array, 可用的双目运算符的序列，参见 gen() 的同名参数。
+ * @param uniOps Array, 可用的单目运算符的序列，参见 gen() 的同名参数。
  * @param withParentheses bool, 是否可用括号？
  * @param allowReorder bool, 可否调整操作数的顺序？
  */
