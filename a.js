@@ -334,13 +334,13 @@ function compileTest() {
  * 解析变量初始化语句。
  *
  * @param inits e.g., 'x=3;y=2;z=5;...'
- * @return a map.
+ * @return {x:3, y:2, z: 5}
  */
 function parseVars(inits) {
-  let vals = new Map()
+  let vals = {}
   inits.split(';').forEach(init => {
     let a = init.split('=')
-    vals.set(a[0], a[1])
+    vals[a[0]] = a[1]
   })
   return vals
 }
@@ -349,13 +349,13 @@ function parseVars(inits) {
  * 把表达式中的变量替换成相应的数值。
  *
  * @param expr e.g., "x + y - z"
- * @param vals a map, e.g., { x -> 5, y -> 2, z -> 3 }
+ * @param vals a object, e.g., {x:3, y:2, z: 5}
  */
 function substituteVars(expr, vals) {
   var line = ''
   for (var i = 0; i < expr.length; ++i) {
     if (isOperand(expr[i]))
-      line += vals.get(expr[i])
+      line += vals[expr[i]]
     else
       line += expr[i]
   }
