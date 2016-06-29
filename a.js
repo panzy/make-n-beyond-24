@@ -648,7 +648,7 @@ function solve(inits, operands, target, binOps, unaryOps, withParentheses, allow
   let results = []
   for (let e of expr) {
     let factorial = n => {
-      let tbl = [1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800]
+      let tbl = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800]
       return tbl[n]
     }
 
