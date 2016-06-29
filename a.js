@@ -629,6 +629,70 @@ function substituteVarsTest() {
 }
 
 /**
+ * 获取操作数集合的所有排列，保证输出的集合中不含重复项。
+ *
+ * xxy => [ xxy, xyx, yxx ]
+ *
+ * --
+ * source by delimited
+ * http://stackoverflow.com/questions/9960908/permutations-in-javascript
+ */
+function permutator(inputArr) {
+  var results = [];
+
+  function permute(arr, memo) {
+    var cur, memo = memo || [];
+
+    for (var i = 0; i < arr.length; i++) {
+      cur = arr.splice(i, 1);
+      if (arr.length === 0) {
+        results.push(memo.concat(cur));
+      }
+      permute(arr.slice(), memo.concat(cur));
+      arr.splice(i, 0, cur[0]);
+    }
+
+    return results;
+  }
+
+  let permutations = permute(inputArr)
+
+  // remove duplicates
+  let nodup = []
+  permutations.map(arr => arr.join(';'))
+  .sort()
+  .reduce((prev, curr, idx, arr) => {
+    if (curr != prev)
+      nodup.push(curr.split(';'))
+        return curr
+  }, '');
+  return nodup
+}
+
+function permutatorTest() {
+  let tests = [
+    ['xy', 'xy', 2],
+    ['xy', 'yx', 2],
+    ['xyz', 'xyz', 6],
+    ['xyz', 'xzy', 6],
+    ['xyz', 'yxz', 6],
+    ['xyz', 'yzx', 6],
+    ['xyz', 'zxy', 6],
+    ['xyz', 'zyx', 6],
+    ['xxy', 'xyx', 3],
+  ]
+
+  console.log('begin test permutations()')
+  tests.forEach(i => {
+    let actual = permutator(i[0].split('')).map(a => a.join(''))
+    console.log(i[0], '=>', i[1])
+    console.assert(actual.indexOf(i[1]) != -1, `expect ${i[0]} => ${i[1]}, got ${actual}`)
+    console.assert(actual.length == i[2], `expect count to be ${i[2]}, got ${actual.length}`)
+  })
+  console.log('all tests passed')
+}
+
+/**
  * 已知操作数和结果，找出算术表达式。
  *
  * @param inits String, 变量初始化语句的序列，参见 parseVars() 的同名参数。
@@ -641,24 +705,33 @@ function substituteVarsTest() {
  */
 function solve(inits, operands, target, binOps, unaryOps, withParentheses, allowReorder) {
   let vals = parseVars(inits)
-  let expr = gen3(operands.split(''), binOps, unaryOps, withParentheses).map(
-      e => substituteVars(e, vals))
-  //console.log(expr.join('\n'))
 
-  let factorial = n => {
-    let tbl = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800]
-    return tbl[n]
-  }
+  let permuatations = allowReorder ? permutator(operands.split('')) : [operands.split('')]
+  for (let opds of permuatations) {
 
-  let results = []
-  for (let e of expr) {
-    if (eval(compile(e)) == target) {
-      results.push(e)
-      console.log(e, '=', compile(e), '=', target)
-      break
+    let expr = gen3(opds, binOps, unaryOps, withParentheses).map(
+        e => substituteVars(e, vals))
+    //console.log(expr.join('\n'))
+
+    let factorial = n => {
+      let tbl = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800]
+      return tbl[n]
     }
+
+    let results = []
+    for (let e of expr) {
+      if (eval(compile(e)) == target) {
+        results.push(e)
+        console.log(e, '=', compile(e), '=', target)
+        break
+      }
+    }
+
+    if (results.length > 0)
+      return results
   }
-  return results
+
+  return []
 }
 
 function solveTest() {
@@ -701,11 +774,7 @@ function solveTest() {
   console.assert(solve('x=10', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
 
   console.log('\n5 5 5 1 => 24')
-  console.assert(solve('x=5;y=1', 'xxyx', 24, binOps, unaryOpsNon, 1, 0).length > 0)
-
-  // TODO
-  //console.log('\n5 5 5 1 => 24')
-  //console.assert(solve('x=5;y=1', 'xxxy', 24, binOps, unaryOpsNon, 1, 1).length > 0)
+  console.assert(solve('x=5;y=1', 'xxxy', 24, binOps, unaryOpsNon, 1, 1).length > 0)
 
   console.log('\n5 5 5 1 => 25')
   console.assert(solve('x=5;y=1', 'xxxy', 25, binOps, unaryOpsNon, 1, 0).length > 0)
@@ -729,6 +798,7 @@ addUnaryOpsTest()
 gen1Test()
 gen2Test()
 gen3Test()
+permutatorTest()
 
 solveTest()
 
