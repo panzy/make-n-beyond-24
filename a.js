@@ -6,6 +6,8 @@
  * 为方便算法实现，采用了以下一些设计技巧：
  *
  * - 所有操作数、运算符均为单字符；
+ *   -- 操作数均为小写字母或数字，
+ *   -- 运算符为符号或大写字母；
  * - compile() 负责把运算符替换为相应的函数，比如 √x => Math.sqrt(x)；
  * - 所有单目运算符均前置，以便统一处理，比如阶乘表示为 !n 而非 n!；
  * - 负号采用 ~ 表示，以便与减号相区分；
@@ -89,7 +91,11 @@ function isOperand(str) {
 }
 
 function isUnaryOp(c) {
-  return '~!√'.indexOf(c) != -1
+  return '~!√L'.indexOf(c) != -1
+}
+
+function isSeparator(c) {
+  return ' +-*/()'.indexOf(c) != -1 || isUnaryOp(c)
 }
 
 function applyParentheses(parenthesesSpec, expr) {
@@ -479,14 +485,13 @@ function gen3Test() {
 }
 
 function findExprEnd(expr) {
-  let sep = ' +-*/~√()'
   var unclosed = 0 // count of unclosed parentheses
   var operands = 0 // count of operands
   for (var i = 0; i < expr.length; ++i) {
     let c = expr[i]
     if (isOperand(c))
       ++operands
-    if (operands > 0 && unclosed == 0 && sep.indexOf(c) != -1)
+    if (operands > 0 && unclosed == 0 && isSeparator(c))
       return i
     if (c == '(')
       ++unclosed
@@ -528,6 +533,7 @@ function findExprEndTest() {
  * - √: Math.sqrt
  * - ~: negative
  * - !: factorial
+ * - L: Math.LN10
  * */
 function compile(expr) {
   if (expr.length < 1) {
@@ -537,6 +543,7 @@ function compile(expr) {
       '~': '-',
       '√': 'Math.sqrt',
       '!': 'factorial',
+      'L': 'Math.log10',
     }
 
     let end = findExprEnd(expr.substr(1))
@@ -657,13 +664,13 @@ function solveTest() {
   let binOps = '+-*/'.split('')
   let unaryOpsNon = []
   let unaryOps = ['~', '√']
-  let unaryOps2 = ['~', '√', '!']
-
-  console.log('\n0 0 0 => 3')
-  console.assert(solve('x=0', 'xxx', 3, binOps, unaryOps2, 1, 0).length > 0)
+  let unaryOps2 = ['~', '√', '!', 'L']
 
   console.log('\n0 0 0 => 6')
   console.assert(solve('x=0', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
+
+  console.log('\n1 1 1 => 6')
+  console.assert(solve('x=1', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
 
   console.log('\n2 2 2 => 6')
   console.assert(solve('x=2', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
@@ -685,6 +692,12 @@ function solveTest() {
 
   console.log('\n8 8 8 => 6')
   console.assert(solve('x=8', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
+
+  console.log('\n9 9 9 => 6')
+  console.assert(solve('x=9', 'xxx', 6, binOps, unaryOps, 1, 0).length > 0)
+
+  console.log('\n10 10 10 => 6')
+  console.assert(solve('x=10', 'xxx', 6, binOps, unaryOps2, 1, 0).length > 0)
 
   console.log('\n5 5 5 1 => 24')
   console.assert(solve('x=5;y=1', 'xxyx', 24, binOps, unaryOpsNon, 1, 0).length > 0)
