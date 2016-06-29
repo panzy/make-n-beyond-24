@@ -399,8 +399,8 @@ function gen2Test() {
  * @param unaryOps Array, 可用的单目运算符的序列，参见 gen1() 的同名参数。
  */
 function gen3(operands, binOps, unaryOps, withParentheses) {
-  let exprs = gen2(operands, binOps, unaryOps, withParentheses)
-  let exprs2 = exprs.flatMap(expr => {
+  // simplify and gen
+  let simplifyGen = expr => {
     let simplifiedExprs = [extractSubExprs(expr)]
 
     // 把整个表达式视为一个单元，从而可以对其应用单目运算符，如
@@ -416,7 +416,10 @@ function gen3(operands, binOps, unaryOps, withParentheses) {
         return []
       }
     })
-  })
+  }
+
+  let exprs = gen2(operands, binOps, unaryOps, withParentheses)
+  let exprs2 = exprs.flatMap(expr => simplifyGen(expr))
   return exprs.concat(exprs2)
     .filter(e => e.indexOf('--') == -1) // filter illegal exprs
 }
