@@ -152,10 +152,10 @@ function extractOperandsTest() {
 /**
  * 把表达式中的子表达式抽取为变量，使原表达式更简单。如
  *
- * x + √(y / z) => x + a;a=√(y / z)
+ * x + √(y / z) => x + a;a=(√(y / z))
  *
  * @param expr String, e.g., 'x + √(y / z)'
- * @return {expr: 'x + a', map: {a: '√(y / z)'}}
+ * @return {expr: 'x + a', map: {a: '(√(y / z))'}}，map 中的子表达式总是被包围在一对括号中。
  */
 function extractSubExprs(expr) {
   var varNames = 'abcdefghijklmn'
@@ -172,7 +172,8 @@ function extractSubExprs(expr) {
 
       let j = findExprEnd(expr.slice(i))
       line += varNames[nextVarIdx]
-      map[varNames[nextVarIdx]] = expr.slice(i, i + j)
+      let sub = expr.slice(i, i + j)
+      map[varNames[nextVarIdx]] = sub.startsWith('(') ? sub : '(' + sub + ')'
       ++nextVarIdx
       i += j
     } else {
@@ -199,13 +200,13 @@ function extractSubExprsTest() {
 
     ['x + (y / z)', 'x + a;a=(y / z)'],
     ['(x + y) / z', 'a / z;a=(x + y)'],
-    ['x + √(y / z)', 'x + a;a=√(y / z)'],
-    ['x - √(y + z)', 'x - a;a=√(y + z)'],
-    ['√(x + y) / z', 'a / z;a=√(x + y)'],
-    ['√(a + b) / z', 'c / z;c=√(a + b)'], // test var name conflict
+    ['x + √(y / z)', 'x + a;a=(√(y / z))'],
+    ['x - √(y + z)', 'x - a;a=(√(y + z))'],
+    ['√(x + y) / z', 'a / z;a=(√(x + y))'],
+    ['√(a + b) / z', 'c / z;c=(√(a + b))'], // test var name conflict
     ['x - y + (u - v)', 'x - y + a;a=(u - v)'],
-    ['!x + y', 'a + y;a=!x'],
-    ['x + !y', 'x + a;a=!y'],
+    ['!x + y', 'a + y;a=(!x)'],
+    ['x + !y', 'x + a;a=(!y)'],
     // ['x + -y', 'x + a;a=(-y)'], // TODO 负号应该放在括号里
   ]
 
@@ -273,7 +274,7 @@ function addUnaryOpsTest() {
   console.log('begin test addUnaryOpsTest()')
 
   tests.forEach(i => {
-    let exprs = addUnaryOps(i[0], ['-', '!'])
+    let exprs = addUnaryOps(i[0], ['-', '!', '√'])
     if (i[2]) {
       console.log(i[0], 'should be able to generate', i[1])
       console.assert(exprs.indexOf(i[1]) != -1, `expect there's "${i[1]}" in ${exprs}.`)
@@ -374,15 +375,18 @@ function genTest() {
     ['xyz', '+-*/', '-!', 'x - (y - z)', 1],
     ['xyz', '+-*/', '-!√', '√x + √(y + z)', 1],
     ['xyz', '+-*/', '-!√', 'x - √(y + z)', 1],
-    ['xyz', '+-*/', '-!√', 'x - √√(y + z)', 1],
+    ['xyz', '+-*/', '-!√', 'x - √(√(y + z))', 1],
     ['xyz', '+-*/', '-!', '!x + !y + !z', 1],
     ['xyz', '+-*/', '-!', '!(!x + !y + !z)', 1],
     ['xy', '+-*/', '-!', '!(!x + !y)', 1],
     ['x', '+-*/', '-!', '!x', 1],
     ['x', '+-*/', '-!', '!(!x)', 1],
+    ['x', '+-*/', '-!', '-(!x)', 1],
     ['x', '+-*/', '-!', '!!x', 0],
     ['x', '+-*/', '-!', '-(-x)', 1],
-    ['x', '', '-', '--x', 0],
+    ['x', '', '-√!', '--x', 0],
+    ['x', '', '-√!', '√(!x)', 1],
+    ['x', '', '-√!', '!(√x)', 1],
   ]
 
   console.log('begin test gen()')
@@ -621,6 +625,7 @@ function solveTest() {
   console.log('\n2 3 4 5 => 24')
   console.assert(solve('x=2;y=3;u=4;v=5', 'xyuv', 24, binOps, unaryOpsNon, 1, 0).length > 0)
 }
+
 
 findExprEndTest()
 extractOperandsTest()
