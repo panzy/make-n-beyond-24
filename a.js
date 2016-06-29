@@ -645,13 +645,13 @@ function solve(inits, operands, target, binOps, unaryOps, withParentheses, allow
       e => substituteVars(e, vals))
   //console.log(expr.join('\n'))
 
+  let factorial = n => {
+    let tbl = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800]
+    return tbl[n]
+  }
+
   let results = []
   for (let e of expr) {
-    let factorial = n => {
-      let tbl = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800]
-      return tbl[n]
-    }
-
     if (eval(compile(e)) == target) {
       results.push(e)
       console.log(e, '=', compile(e), '=', target)
