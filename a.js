@@ -401,8 +401,14 @@ function gen2Test() {
 function gen3(operands, binOps, unaryOps, withParentheses) {
   let exprs = gen2(operands, binOps, unaryOps, withParentheses)
   let exprs2 = exprs.flatMap(expr => {
-    let selfAsSubExpr = {expr: 'a', map: {a: '(' + expr + ')'}}
-    return [extractSubExprs(expr), selfAsSubExpr].flatMap(em => {
+    let simplifiedExprs = [extractSubExprs(expr)]
+
+    // 把整个表达式视为一个单元，从而可以对其应用单目运算符，如
+    // x + y => !(x + y)
+    if (expr.length > 1)
+      simplifiedExprs.push({expr: 'a', map: {a: '(' + expr + ')'}})
+
+    return simplifiedExprs.flatMap(em => {
       if (!em.map.isEmpty()) {
         let exprs3 = addUnaryOps(em.expr, unaryOps)
         return exprs3.map(e => substituteVars(e, em.map))
@@ -442,6 +448,7 @@ function gen3Test() {
     ['x', '', '-√!', '--x', 0],
     ['x', '', '-√!', '√(!x)', 1],
     ['x', '', '-√!', '!(√x)', 1],
+    ['x', '+-*/', '-!', '!(x)', 0],
   ]
 
   console.log('begin test gen3()')
