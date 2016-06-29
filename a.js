@@ -295,33 +295,62 @@ function addUnaryOpsTest() {
  * @param binOps Array, 可用的双目运算符的序列，如 ['+', '-', '*', '/']。
  * @param unaryOps Array, 可用的单目运算符的序列，如 ['-', '√', '!']。
  */
-function _gen(operands, binOps, unaryOps) {
+function gen1(operands, binOps, unaryOps) {
 
   if (operands.length == 0) return []
   if (operands.length == 1)
     return [operands[0]].concat(unaryOps.map(op => op + operands[0]))
   else {
-    var first = _gen(operands.slice(0, 1), binOps, unaryOps).flatMap(t =>
+    var first = gen1(operands.slice(0, 1), binOps, unaryOps).flatMap(t =>
         binOps.map(op =>
           t + ' ' + op + ' '))
-    return _gen(operands.slice(1), binOps, unaryOps).flatMap(rest =>
+    return gen1(operands.slice(1), binOps, unaryOps).flatMap(rest =>
         first.map(f => f + rest))
   }
 }
 
+function gen1Test() {
+  // fields: operands, binary ops, unary ops, expr, contain or not.
+  let tests = [
+    // no binary ops
+    ['x', '', '-!√', 'x', 1],
+    ['x', '', '-!√', '-x', 1],
+    ['x', '', '-!√', '!x', 1],
+    ['x', '', '-!√', '√x', 1],
+
+    // no unary ops
+    ['xy', '+-*/', '', 'x + y', 1],
+    ['xy', '+-*/', '', 'x - y', 1],
+    ['xy', '+-*/', '', 'x * y', 1],
+    ['xy', '+-*/', '', 'x / y', 1],
+
+    // all ops
+    ['xy', '+-*/', '-!√', 'x + y', 1],
+    ['xy', '+-*/', '-!√', 'x + !y', 1],
+    ['xy', '+-*/', '-!√', '√x + !y', 1],
+  ]
+
+  console.log('begin test gen1()')
+
+  tests.forEach(i => {
+    let exprs = gen1(i[0].split(''), i[1].split(''), i[2].split(''))
+    if (i[4]) {
+      console.log(i[0], 'should be able to generate', i[3])
+      console.assert(exprs.indexOf(i[3]) != -1, `expect there's ${i[3]} in ${exprs}`)
+    } else {
+      console.log(i[0], 'should not be able to generate', i[3])
+      console.assert(exprs.indexOf(i[3]) == -1, `expect there's no ${i[3]} in ${exprs}`)
+    }
+  })
+
+  console.log('all tests passed!')
+}
+
 /**
- * 给定若干操作数，枚举合法的表达式。不会对子表达式进一步应用运算符，比如
- *
- * x, y, z => x * √(y + z) => x * √√(y + z)
- *
- * 其中第二步转换需要把 √(y + z) 视为整体。
- *
- * @param operands String, 操作数序列，参见 _gen() 的同名参数。
- * @param binOps Array, 可用的双目运算符的序列，参见 _gen() 的同名参数。
- * @param unaryOps Array, 可用的单目运算符的序列，参见 _gen() 的同名参数。
+ * 比 gen1() 多出的能力是使用括号。
  */
-function _gen2(operands, binOps, unaryOps, withParentheses) {
-  let exprs = _gen(operands, binOps, unaryOps)
+function gen2(operands, binOps, unaryOps, withParentheses) {
+  let exprs = gen1(operands, binOps, unaryOps)
   if (withParentheses) {
     let pss = parentheses(operands.length)
       return exprs.concat(exprs.flatMap(expr =>
@@ -331,20 +360,46 @@ function _gen2(operands, binOps, unaryOps, withParentheses) {
   }
 }
 
+function gen2Test() {
+  // fields: operands, binary ops, unary ops, expr, contain or not.
+  let tests = [
+    // no unary ops
+    ['xyz', '+-*/', '', 'x * (y - z)', 1],
+
+    // all ops
+    ['xyz', '+-*/', '-!√', '√(x + y) / !z', 1],
+  ]
+
+  console.log('begin test gen2()')
+
+  tests.forEach(i => {
+    let exprs = gen2(i[0].split(''), i[1].split(''), i[2].split(''), true)
+    if (i[4]) {
+      console.log(i[0], 'should be able to generate', i[3])
+      console.assert(exprs.indexOf(i[3]) != -1, `expect there's ${i[3]} in ${exprs}`)
+    } else {
+      console.log(i[0], 'should not be able to generate', i[3])
+      console.assert(exprs.indexOf(i[3]) == -1, `expect there's no ${i[3]} in ${exprs}`)
+    }
+  })
+
+  console.log('all tests passed!')
+}
+
 /**
- * 给定若干操作数，枚举合法的表达式。会对子表达式进一步应用运算符，比如
+ * 比 gen2() 多出的能力是对子表达式进一步应用运算符，比如
  *
  * A. x, y, z => x * √(y + z) => x * √(y + z)
  * B. x, y => !x + !y => !(!x + !y)
  *
  * 目前这个动作不会递归。
  *
- * @param operands String, 操作数序列，参见 _gen() 的同名参数。
- * @param binOps Array, 可用的双目运算符的序列，参见 _gen() 的同名参数。
- * @param unaryOps Array, 可用的单目运算符的序列，参见 _gen() 的同名参数。
+ * @param operands String, 操作数序列，参见 gen1() 的同名参数。
+ * @param binOps Array, 可用的双目运算符的序列，参见 gen1() 的同名参数。
+ * @param unaryOps Array, 可用的单目运算符的序列，参见 gen1() 的同名参数。
  */
-function gen(operands, binOps, unaryOps, withParentheses) {
-  let exprs = _gen2(operands, binOps, unaryOps, withParentheses)
+function gen3(operands, binOps, unaryOps, withParentheses) {
+  let exprs = gen2(operands, binOps, unaryOps, withParentheses)
   let exprs2 = exprs.flatMap(expr => {
     let selfAsSubExpr = {expr: 'a', map: {a: '(' + expr + ')'}}
     return [extractSubExprs(expr), selfAsSubExpr].flatMap(em => {
@@ -360,7 +415,7 @@ function gen(operands, binOps, unaryOps, withParentheses) {
     .filter(e => e.indexOf('--') == -1) // filter illegal exprs
 }
 
-function genTest() {
+function gen3Test() {
   // fields: operands, binary ops, unary ops, expr, contain or not.
   let tests = [
     ['xy', '+-*/', '-!', 'x + y', 1],
@@ -389,10 +444,10 @@ function genTest() {
     ['x', '', '-√!', '!(√x)', 1],
   ]
 
-  console.log('begin test gen()')
+  console.log('begin test gen3()')
 
   tests.forEach(i => {
-    let exprs = gen(i[0].split(''), i[1].split(''), i[2].split(''), true)
+    let exprs = gen3(i[0].split(''), i[1].split(''), i[2].split(''), true)
     if (i[4]) {
       console.log(i[0], 'should be able to generate', i[3])
       console.assert(exprs.indexOf(i[3]) != -1, `expect there's ${i[3]} in ${exprs}`)
@@ -548,16 +603,16 @@ function substituteVarsTest() {
  * 已知操作数和结果，找出算术表达式。
  *
  * @param inits String, 变量初始化语句的序列，参见 parseVars() 的同名参数。
- * @param operands String, 操作数序列，参见 gen() 的同名参数。
+ * @param operands String, 操作数序列，参见 gen3() 的同名参数。
  * @param target Number, 算术表达式的结果。
- * @param binOps Array, 可用的双目运算符的序列，参见 gen() 的同名参数。
- * @param unaryOps Array, 可用的单目运算符的序列，参见 gen() 的同名参数。
+ * @param binOps Array, 可用的双目运算符的序列，参见 gen3() 的同名参数。
+ * @param unaryOps Array, 可用的单目运算符的序列，参见 gen3() 的同名参数。
  * @param withParentheses bool, 是否可用括号？
  * @param allowReorder bool, 可否调整操作数的顺序？
  */
 function solve(inits, operands, target, binOps, unaryOps, withParentheses, allowReorder) {
   let vals = parseVars(inits)
-  let expr = gen(operands.split(''), binOps, unaryOps, withParentheses).map(
+  let expr = gen3(operands.split(''), binOps, unaryOps, withParentheses).map(
       e => substituteVars(e, vals))
   //console.log(expr.join('\n'))
 
@@ -635,6 +690,9 @@ parenthesesTest()
 applyParenthesesTest()
 substituteVarsTest()
 addUnaryOpsTest()
-genTest()
+gen1Test()
+gen2Test()
+gen3Test()
+
 solveTest()
 
