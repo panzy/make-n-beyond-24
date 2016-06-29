@@ -1,6 +1,14 @@
 /**
  * 给定操作数和结果，找出算术表达式。如
  *  5 5 5 1四个数字,用加减乘除,结果等于24
+ *
+ *
+ * 为方便算法实现，采用了以下一些设计技巧：
+ *
+ * - 所有操作数、运算符均为单字符；
+ * - compile() 负责把运算符替换为相应的函数，比如 √x => Math.sqrt(x)；
+ * - 所有单目运算符均前置，以便统一处理，比如阶乘表示为 !n 而非 n!；
+ * - 负号采用 ~ 表示，以便与减号相区分；
  */
 'use strict';
 
@@ -81,7 +89,7 @@ function isOperand(str) {
 }
 
 function isUnaryOp(c) {
-  return '-!√'.indexOf(c) != -1
+  return '~!√'.indexOf(c) != -1
 }
 
 function applyParentheses(parenthesesSpec, expr) {
@@ -137,7 +145,7 @@ function extractOperandsTest() {
     ['(a+b)*c', 'abc'],
     ['(a+b ) *c', 'abc'],
     ['√(√b-c)) * 3', 'bc3'],
-    ['-a * -z', 'az'],
+    ['~a * ~z', 'az'],
   ]
 
   console.log('begin test extractOperands()')
@@ -164,7 +172,7 @@ function extractSubExprs(expr) {
   var map = {} // var -> sub expr
   for (var i = 0; i < expr.length;) {
     let c = expr[i]
-    if (c == '(' || (isUnaryOp(c) && c != '-'/* FIXME 由于 '-' 同时也是双目运算符...*/)) {
+    if (c == '(' || isUnaryOp(c)) {
 
       while (nextVarIdx < varNames.length &&
           expr.indexOf(varNames[nextVarIdx]) != -1)
@@ -193,7 +201,7 @@ function extractSubExprsTest() {
     // an expr is not a sub expr of itself
     ['x', 'x'],
     ['!x', '!x'],
-    ['-x', '-x'],
+    ['~x', '~x'],
     ['x + y / z', 'x + y / z'],
     ['x - y / z', 'x - y / z'],
     ['(x - y / z)', '(x - y / z)'],
@@ -263,7 +271,7 @@ function _addUnaryOps(expr, ops) {
 
 function addUnaryOpsTest() {
   let tests = [
-    ['x', '-x', 1],
+    ['x', '~x', 1],
     ['x', '!x', 1],
     ['x + y', '!x + !y', 1],
     ['x + y', '!x + y', 1],
@@ -274,7 +282,7 @@ function addUnaryOpsTest() {
   console.log('begin test addUnaryOpsTest()')
 
   tests.forEach(i => {
-    let exprs = addUnaryOps(i[0], ['-', '!', '√'])
+    let exprs = addUnaryOps(i[0], ['~', '!', '√'])
     if (i[2]) {
       console.log(i[0], 'should be able to generate', i[1])
       console.assert(exprs.indexOf(i[1]) != -1, `expect there's "${i[1]}" in ${exprs}.`)
@@ -293,7 +301,7 @@ function addUnaryOpsTest() {
  * @param operands String, 操作数序列，每个字符代表一个形参，允许重复，比如'xxy'
  *    表示3个操作数，其中前2个相同。
  * @param binOps Array, 可用的双目运算符的序列，如 ['+', '-', '*', '/']。
- * @param unaryOps Array, 可用的单目运算符的序列，如 ['-', '√', '!']。
+ * @param unaryOps Array, 可用的单目运算符的序列，如 ['~', '√', '!']。
  */
 function gen1(operands, binOps, unaryOps) {
 
@@ -313,10 +321,10 @@ function gen1Test() {
   // fields: operands, binary ops, unary ops, expr, contain or not.
   let tests = [
     // no binary ops
-    ['x', '', '-!√', 'x', 1],
-    ['x', '', '-!√', '-x', 1],
-    ['x', '', '-!√', '!x', 1],
-    ['x', '', '-!√', '√x', 1],
+    ['x', '', '~!√', 'x', 1],
+    ['x', '', '~!√', '~x', 1],
+    ['x', '', '~!√', '!x', 1],
+    ['x', '', '~!√', '√x', 1],
 
     // no unary ops
     ['xy', '+-*/', '', 'x + y', 1],
@@ -325,9 +333,9 @@ function gen1Test() {
     ['xy', '+-*/', '', 'x / y', 1],
 
     // all ops
-    ['xy', '+-*/', '-!√', 'x + y', 1],
-    ['xy', '+-*/', '-!√', 'x + !y', 1],
-    ['xy', '+-*/', '-!√', '√x + !y', 1],
+    ['xy', '+-*/', '~!√', 'x + y', 1],
+    ['xy', '+-*/', '~!√', 'x + !y', 1],
+    ['xy', '+-*/', '~!√', '√x + !y', 1],
   ]
 
   console.log('begin test gen1()')
@@ -367,7 +375,7 @@ function gen2Test() {
     ['xyz', '+-*/', '', 'x * (y - z)', 1],
 
     // all ops
-    ['xyz', '+-*/', '-!√', '√(x + y) / !z', 1],
+    ['xyz', '+-*/', '~!√', '√(x + y) / !z', 1],
   ]
 
   console.log('begin test gen2()')
@@ -421,37 +429,37 @@ function gen3(operands, binOps, unaryOps, withParentheses) {
   let exprs = gen2(operands, binOps, unaryOps, withParentheses)
   let exprs2 = exprs.flatMap(expr => simplifyGen(expr))
   return exprs.concat(exprs2)
-    .filter(e => e.indexOf('--') == -1) // filter illegal exprs
 }
 
 function gen3Test() {
   // fields: operands, binary ops, unary ops, expr, contain or not.
   let tests = [
-    ['xy', '+-*/', '-!', 'x + y', 1],
-    ['xy', '+-*/', '-!', 'x - y', 1],
-    ['xa', '+-*/', '-!√', 'x - √a', 1],
-    ['xy', '+-*/', '-!', 'x * y', 1],
-    ['xy', '+-*/', '-!', 'x / y', 1],
-    ['xy', '+-*/', '-!√', '-x / √y', 1],
-    ['xy', '+-*/', '-!', '-x / y', 1],
-    ['xyz', '+-*/', '-!', 'x + y + z', 1],
-    ['xyz', '+-*/', '-!', 'x + y - z', 1],
-    ['xyz', '+-*/', '-!', 'x - (y - z)', 1],
-    ['xyz', '+-*/', '-!√', '√x + √(y + z)', 1],
-    ['xyz', '+-*/', '-!√', 'x - √(y + z)', 1],
-    ['xyz', '+-*/', '-!√', 'x - √(√(y + z))', 1],
-    ['xyz', '+-*/', '-!', '!x + !y + !z', 1],
-    ['xyz', '+-*/', '-!', '!(!x + !y + !z)', 1],
-    ['xy', '+-*/', '-!', '!(!x + !y)', 1],
-    ['x', '+-*/', '-!', '!x', 1],
-    ['x', '+-*/', '-!', '!(!x)', 1],
-    ['x', '+-*/', '-!', '-(!x)', 1],
-    ['x', '+-*/', '-!', '!!x', 0],
-    ['x', '+-*/', '-!', '-(-x)', 1],
-    ['x', '', '-√!', '--x', 0],
-    ['x', '', '-√!', '√(!x)', 1],
-    ['x', '', '-√!', '!(√x)', 1],
-    ['x', '+-*/', '-!', '!(x)', 0],
+    ['xy', '+-*/', '~!', 'x + y', 1],
+    ['xy', '+-*/', '~!', 'x - y', 1],
+    ['xa', '+-*/', '~!√', 'x - √a', 1],
+    ['xy', '+-*/', '~!', 'x * y', 1],
+    ['xy', '+-*/', '~!', 'x / y', 1],
+    ['xy', '+-*/', '~!√', '~x / √y', 1],
+    ['xy', '+-*/', '~!', '~x / y', 1],
+    ['xy', '+', '~!', '!(!x) + ~(~y)', 1],
+    ['xyz', '+-*/', '~!', 'x + y + z', 1],
+    ['xyz', '+-*/', '~!', 'x + y - z', 1],
+    ['xyz', '+-*/', '~!', 'x - (y - z)', 1],
+    ['xyz', '+-*/', '~!√', '√x + √(y + z)', 1],
+    ['xyz', '+-*/', '~!√', 'x - √(y + z)', 1],
+    ['xyz', '+-*/', '~!√', 'x - √(√(y + z))', 1],
+    ['xyz', '+-*/', '~!', '!x + !y + !z', 1],
+    ['xyz', '+-*/', '~!', '!(!x + !y + !z)', 1],
+    ['xy', '+-*/', '~!', '!(!x + !y)', 1],
+    ['x', '+-*/', '~!', '!x', 1],
+    ['x', '+-*/', '~!', '!(!x)', 1],
+    ['x', '+-*/', '~!', '~(!x)', 1],
+    ['x', '+-*/', '~!', '!!x', 0],
+    ['x', '+-*/', '~!', '~(~x)', 1],
+    ['x', '', '~√!', '~~x', 0], // illegal
+    ['x', '', '~√!', '√(!x)', 1],
+    ['x', '', '~√!', '!(√x)', 1],
+    ['x', '+-*/', '~!', '!(x)', 0],
   ]
 
   console.log('begin test gen3()')
@@ -471,7 +479,7 @@ function gen3Test() {
 }
 
 function findExprEnd(expr) {
-  let sep = ' +-*/√()'
+  let sep = ' +-*/~√()'
   var unclosed = 0 // count of unclosed parentheses
   var operands = 0 // count of operands
   for (var i = 0; i < expr.length; ++i) {
@@ -518,13 +526,15 @@ function findExprEndTest() {
  *
  * supported math operator:
  * - √: Math.sqrt
- * - ∠: ?
+ * - ~: negative
+ * - !: factorial
  * */
 function compile(expr) {
   if (expr.length < 1) {
     return expr
-  } else if ('√!'.indexOf(expr[0]) != -1) {
+  } else if (isUnaryOp(expr[0])) {
     let funcs = {
+      '~': '-',
       '√': 'Math.sqrt',
       '!': 'factorial',
     }
@@ -549,13 +559,15 @@ function compileTest() {
     ['√8 + √(8 + 8)', 'Math.sqrt(8) + Math.sqrt((8 + 8))'],
     ['8 - √√(8 + 8)', '8 - Math.sqrt(Math.sqrt((8 + 8)))'],
     ['!x', 'factorial(x)'],
+    ['~x', '-(x)'],
+    ['~x * y', '-(x) * y'],
   ]
 
   console.log('begin test compile()')
   tests.forEach(i => {
     let actual = compile(i[0])
     console.log(i[0], '=>', i[1])
-    console.assert(actual == i[1], `expect ${i[1]}, got ${actual}`)
+    console.assert(actual == i[1], `expect ${i[0]} => ${i[1]}, got ${actual}`)
   })
   console.log('all tests passed')
 }
@@ -644,8 +656,8 @@ function solve(inits, operands, target, binOps, unaryOps, withParentheses, allow
 function solveTest() {
   let binOps = '+-*/'.split('')
   let unaryOpsNon = []
-  let unaryOps = ['-', '√']
-  let unaryOps2 = ['-', '√', '!']
+  let unaryOps = ['~', '√']
+  let unaryOps2 = ['~', '√', '!']
 
   console.log('\n0 0 0 => 3')
   console.assert(solve('x=0', 'xxx', 3, binOps, unaryOps2, 1, 0).length > 0)
