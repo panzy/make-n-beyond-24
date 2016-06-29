@@ -8,6 +8,10 @@ Array.prototype.flatMap = function(lambda) {
     return Array.prototype.concat.apply([], this.map(lambda));
 }
 
+Object.prototype.isEmpty = function() {
+  return Object.keys(this).length == 0
+}
+
 /**
  * 为指定数量的操作数生成合法的圆括号方案。
  *
@@ -176,14 +180,23 @@ function extractSubExprs(expr) {
       ++i
     }
   }
-  return {src: expr, expr: line, map: map}
+  if (line.length > 1)
+    return {src: expr, expr: line, map: map}
+  else
+    // an expr is not a sub expr of itself
+    return {expr: expr, map: {}}
 }
 
 function extractSubExprsTest() {
   let tests = [
+    // an expr is not a sub expr of itself
+    ['x', 'x'],
+    ['!x', '!x'],
+    ['-x', '-x'],
     ['x + y / z', 'x + y / z'],
     ['x - y / z', 'x - y / z'],
-    ['(x - y / z)', 'a;a=(x - y / z)'],
+    ['(x - y / z)', '(x - y / z)'],
+
     ['x + (y / z)', 'x + a;a=(y / z)'],
     ['(x + y) / z', 'a / z;a=(x + y)'],
     ['x + √(y / z)', 'x + a;a=√(y / z)'],
@@ -191,6 +204,9 @@ function extractSubExprsTest() {
     ['√(x + y) / z', 'a / z;a=√(x + y)'],
     ['√(a + b) / z', 'c / z;c=√(a + b)'], // test var name conflict
     ['x - y + (u - v)', 'x - y + a;a=(u - v)'],
+    ['!x + y', 'a + y;a=!x'],
+    ['x + !y', 'x + a;a=!y'],
+    // ['x + -y', 'x + a;a=(-y)'], // TODO 负号应该放在括号里
   ]
 
   console.log('begin test extractSubExprs()')
@@ -201,6 +217,51 @@ function extractSubExprsTest() {
     Object.keys(obj.map).forEach(key => actual += ';' + key + '=' + obj.map[key])
     console.assert(actual == d[1], `expect ${d[1]}, got ${actual}`)
   })
+  console.log('all tests passed!')
+}
+
+/**
+ * 通过向已有表达式添加单目运算符生成新的（多个）表达式。
+ * e.g.,
+ * A. x + y => x + !y
+ * B. x + y => !x + y
+ * C. x + y => !x + !y
+ * D. x + y => !(x + y)
+ * E. x + y => !(x + !y)
+ */
+function addUnaryOps(expr, ops) {
+  if (expr.length == 0) return []
+  let c = expr[0]
+  let heads = []
+  heads.push(c)
+  if (isOperand(c)) {
+    ops.forEach(op => heads.push(op + c))
+  }
+  if (expr.length > 1) {
+    let tails = addUnaryOps(expr.slice(1), ops)
+    return heads.flatMap(head => tails.map(tail => head + tail))
+  } else {
+    return heads
+  }
+}
+
+function addUnaryOpsTest() {
+  let tests = [
+    ['x', '-x'],
+    ['x', '!x'],
+    ['x + y', '!x + !y'],
+    ['x + y', '!x + y'],
+    ['x + y', 'x + !y'],
+  ]
+
+  console.log('begin test addUnaryOpsTest()')
+
+  tests.forEach(i => {
+    let exprs = addUnaryOps(i[0], ['-', '!'])
+    console.log(i[0], 'should be able to generate', i[1])
+    console.assert(exprs.indexOf(i[1]) != -1, `expect there's "${i[1]}" in ${exprs}.`)
+  })
+
   console.log('all tests passed!')
 }
 
@@ -263,10 +324,10 @@ function _gen2(operands, binOps, unaryOps, withParentheses) {
 function gen(operands, binOps, unaryOps, withParentheses) {
   let exprs = _gen2(operands, binOps, unaryOps, withParentheses)
   let exprs2 = exprs.flatMap(expr => {
-    return [extractSubExprs(expr), extractSubExprs('(' + expr + ')')].flatMap(em => {
-      if (em.map != {}) {
-        let exprs3 = _gen(extractOperands(em.expr), binOps, unaryOps)
-        // TODO TOO many duplicated exprs
+    let selfAsSubExpr = {expr: 'a', map: {a: '(' + expr + ')'}}
+    return [extractSubExprs(expr), selfAsSubExpr].flatMap(em => {
+      if (!em.map.isEmpty()) {
+        let exprs3 = addUnaryOps(em.expr, unaryOps)
         return exprs3.map(e => substituteVars(e, em.map))
       } else {
         return []
@@ -274,36 +335,46 @@ function gen(operands, binOps, unaryOps, withParentheses) {
     })
   })
   return exprs.concat(exprs2)
+    .filter(e => e.indexOf('--') == -1) // filter illegal exprs
 }
 
 function genTest() {
+  // fields: operands, binary ops, unary ops, expr, contain or not.
   let tests = [
-    ['xy', '+-*/', '-!', 'x + y'],
-    ['xy', '+-*/', '-!', 'x - y'],
-    ['xa', '+-*/', '-!√', 'x - √a'],
-    ['xy', '+-*/', '-!', 'x * y'],
-    ['xy', '+-*/', '-!', 'x / y'],
-    ['xy', '+-*/', '-!√', '-x / √y'],
-    ['xy', '+-*/', '-!', '-x / y'],
-    ['xyz', '+-*/', '-!', 'x + y + z'],
-    ['xyz', '+-*/', '-!', 'x + y - z'],
-    ['xyz', '+-*/', '-!', 'x - (y - z)'],
-    ['xyz', '+-*/', '-!√', '√x + √(y + z)'],
-    ['xyz', '+-*/', '-!√', 'x - √(y + z)'],
-    ['xyz', '+-*/', '-!√', 'x - √√(y + z)'],
-    ['xyz', '+-*/', '-!', '!x + !y + !z'],
-    ['xyz', '+-*/', '-!', '!(!x + !y + !z)'],
-    ['xy', '+-*/', '-!', '!(!x + !y)'],
-    ['x', '+-*/', '-!', '!x'],
-    ['x', '+-*/', '-!', '!!x'],
+    ['xy', '+-*/', '-!', 'x + y', 1],
+    ['xy', '+-*/', '-!', 'x - y', 1],
+    ['xa', '+-*/', '-!√', 'x - √a', 1],
+    ['xy', '+-*/', '-!', 'x * y', 1],
+    ['xy', '+-*/', '-!', 'x / y', 1],
+    ['xy', '+-*/', '-!√', '-x / √y', 1],
+    ['xy', '+-*/', '-!', '-x / y', 1],
+    ['xyz', '+-*/', '-!', 'x + y + z', 1],
+    ['xyz', '+-*/', '-!', 'x + y - z', 1],
+    ['xyz', '+-*/', '-!', 'x - (y - z)', 1],
+    ['xyz', '+-*/', '-!√', '√x + √(y + z)', 1],
+    ['xyz', '+-*/', '-!√', 'x - √(y + z)', 1],
+    ['xyz', '+-*/', '-!√', 'x - √√(y + z)', 1],
+    ['xyz', '+-*/', '-!', '!x + !y + !z', 1],
+    ['xyz', '+-*/', '-!', '!(!x + !y + !z)', 1],
+    ['xy', '+-*/', '-!', '!(!x + !y)', 1],
+    ['x', '+-*/', '-!', '!x', 1],
+    ['x', '+-*/', '-!', '!(!x)', 1],
+    ['x', '+-*/', '-!', '!!x', 0],
+    ['x', '+-*/', '-!', '-(-x)', 1],
+    ['x', '', '-', '--x', 0],
   ]
 
   console.log('begin test gen()')
 
   tests.forEach(i => {
     let exprs = gen(i[0].split(''), i[1].split(''), i[2].split(''), true)
-    console.log(i[0], 'should be able to generate', i[3])
-    console.assert(exprs.indexOf(i[3]) != -1, `expect there's ${i[3]} in ${exprs}`)
+    if (i[4]) {
+      console.log(i[0], 'should be able to generate', i[3])
+      console.assert(exprs.indexOf(i[3]) != -1, `expect there's ${i[3]} in ${exprs}`)
+    } else {
+      console.log(i[0], 'should not be able to generate', i[3])
+      console.assert(exprs.indexOf(i[3]) == -1, `expect there's no ${i[3]} in ${exprs}`)
+    }
   })
 
   console.log('all tests passed!')
@@ -537,6 +608,7 @@ compileTest()
 parenthesesTest()
 applyParenthesesTest()
 substituteVarsTest()
+addUnaryOpsTest()
 genTest()
 solveTest()
 
