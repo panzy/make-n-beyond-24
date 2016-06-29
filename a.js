@@ -230,15 +230,30 @@ function extractSubExprsTest() {
  * E. x + y => !(x + !y)
  */
 function addUnaryOps(expr, ops) {
+  // _addUnaryOps() 作为一个递归算法，由于视野的限制，
+  // 是无法保证至少一个操作数被应用了单目运算符的，
+  // 而如果所有操作数都保持原样，则整个表达式也就保持了
+  // 原样，我们不希望输出没有任何变化的表达式，所以要
+  // 过滤。
+  return _addUnaryOps(expr, ops).filter(e => e != expr)
+}
+
+function _addUnaryOps(expr, ops) {
   if (expr.length == 0) return []
   let c = expr[0]
   let heads = []
+
+  // 如果 c 是运算符或空格，则原样保留，
+  // 如果 c 是操作数，则也不一定要对它应用单目运算符，
+  // 所以无论如何 c 都至少要原样输出。
   heads.push(c)
+
   if (isOperand(c)) {
     ops.forEach(op => heads.push(op + c))
   }
+
   if (expr.length > 1) {
-    let tails = addUnaryOps(expr.slice(1), ops)
+    let tails = _addUnaryOps(expr.slice(1), ops)
     return heads.flatMap(head => tails.map(tail => head + tail))
   } else {
     return heads
@@ -247,19 +262,25 @@ function addUnaryOps(expr, ops) {
 
 function addUnaryOpsTest() {
   let tests = [
-    ['x', '-x'],
-    ['x', '!x'],
-    ['x + y', '!x + !y'],
-    ['x + y', '!x + y'],
-    ['x + y', 'x + !y'],
+    ['x', '-x', 1],
+    ['x', '!x', 1],
+    ['x + y', '!x + !y', 1],
+    ['x + y', '!x + y', 1],
+    ['x + y', 'x + !y', 1],
+    ['x', 'x', 0], // don't output as is
   ]
 
   console.log('begin test addUnaryOpsTest()')
 
   tests.forEach(i => {
     let exprs = addUnaryOps(i[0], ['-', '!'])
-    console.log(i[0], 'should be able to generate', i[1])
-    console.assert(exprs.indexOf(i[1]) != -1, `expect there's "${i[1]}" in ${exprs}.`)
+    if (i[2]) {
+      console.log(i[0], 'should be able to generate', i[1])
+      console.assert(exprs.indexOf(i[1]) != -1, `expect there's "${i[1]}" in ${exprs}.`)
+    } else {
+      console.log(i[0], 'should be NOT able to generate', i[1])
+      console.assert(exprs.indexOf(i[1]) == -1, `expect there's NO "${i[1]}" in ${exprs}.`)
+    }
   })
 
   console.log('all tests passed!')
