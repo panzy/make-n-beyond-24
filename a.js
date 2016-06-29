@@ -278,34 +278,32 @@ function gen(operands, binOps, unaryOps, withParentheses) {
 
 function genTest() {
   let tests = [
-    ['xy', '!(!x + !y)'],
-    ['x', '!x'],
-    ['x', '!!x'],
-    ['xy', 'x + y'],
-    ['xy', 'x - y'],
-    ['xa', 'x - √a'],
-    ['xy', 'x * y'],
-    ['xy', 'x / y'],
-    ['xy', '-x / √y'],
-    ['xy', '-x / y'],
-    ['xyz', 'x + y + z'],
-    ['xyz', 'x + y - z'],
-    ['xyz', 'x - (y - z)'],
-    ['xyz', '√x + √(y + z)'],
-    ['xyz', 'x - √(y + z)'],
-    ['xyz', 'x - √√(y + z)'],
-    ['xyz', '!x + !y + !z'],
-    ['xyz', '!(!x + !y + !z)'],
+    ['xy', '+-*/', '-!', 'x + y'],
+    ['xy', '+-*/', '-!', 'x - y'],
+    ['xa', '+-*/', '-!√', 'x - √a'],
+    ['xy', '+-*/', '-!', 'x * y'],
+    ['xy', '+-*/', '-!', 'x / y'],
+    ['xy', '+-*/', '-!√', '-x / √y'],
+    ['xy', '+-*/', '-!', '-x / y'],
+    ['xyz', '+-*/', '-!', 'x + y + z'],
+    ['xyz', '+-*/', '-!', 'x + y - z'],
+    ['xyz', '+-*/', '-!', 'x - (y - z)'],
+    ['xyz', '+-*/', '-!√', '√x + √(y + z)'],
+    ['xyz', '+-*/', '-!√', 'x - √(y + z)'],
+    ['xyz', '+-*/', '-!√', 'x - √√(y + z)'],
+    ['xyz', '+-*/', '-!', '!x + !y + !z'],
+    ['xyz', '+-*/', '-!', '!(!x + !y + !z)'],
+    ['xy', '+-*/', '-!', '!(!x + !y)'],
+    ['x', '+-*/', '-!', '!x'],
+    ['x', '+-*/', '-!', '!!x'],
   ]
 
   console.log('begin test gen()')
 
-  let binOps = '+-*/'.split('')
-  let unaryOps = ['-', '√', '!']
   tests.forEach(i => {
-    let exprs = gen(i[0].split(''), binOps, unaryOps, -true)
-    console.log(i[0], 'should be able to generate', i[1])
-    console.assert(exprs.indexOf(i[1]) != -1)
+    let exprs = gen(i[0].split(''), i[1].split(''), i[2].split(''), true)
+    console.log(i[0], 'should be able to generate', i[3])
+    console.assert(exprs.indexOf(i[3]) != -1, `expect there's ${i[3]} in ${exprs}`)
   })
 
   console.log('all tests passed!')
