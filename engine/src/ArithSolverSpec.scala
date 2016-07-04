@@ -1,5 +1,6 @@
-import ArithSolver._
 import org.scalatest.{FlatSpec, Matchers}
+import ArithSolver._
+
 
 /**
   * Created by pzy on 7/2/16.
@@ -35,8 +36,9 @@ class ArithSolverSpec extends FlatSpec with Matchers {
         s"be able generate (${target})" in {
         val obj = extractSubExprs(expr)
         val vars = obj._2.map { case (key, value) =>
-          key.toString + "=" + value }.mkString(";")
-        obj._1 + (if (vars.nonEmpty) ";" + vars else "") should be (target)
+          key.toString + "=" + value
+        }.mkString(";")
+        obj._1 + (if (vars.nonEmpty) ";" + vars else "") should be(target)
       }
     }
   }
@@ -53,7 +55,7 @@ class ArithSolverSpec extends FlatSpec with Matchers {
     tests.foreach { case (expr, target) =>
       s"substituteVars(${expr}, ${vars})" should
         s"generate (${target})" in {
-        substituteVars(expr, vars) should be (target)
+        substituteVars(expr, vars) should be(target)
       }
     }
   }
@@ -149,8 +151,51 @@ class ArithSolverSpec extends FlatSpec with Matchers {
         s"gen3(${operands}, ${binOps}, ${unaryOps}, true)" should
           s"not be able generate (${target})" in {
           gen3(operands, binOps.toCharArray, unaryOps.toCharArray, true) should
-            not contain(target)
+            not contain (target)
         }
+      }
+    }
+  }
+
+  // test eval()
+  {
+    val tests = Array(
+      ("1 + 2", 3),
+      ("10 - 2 * 4", 2),
+      ("(10 - 2) * 4", 32),
+      ("1 + sqrt(4)", 3),
+      ("1 + log10(10)", 2),
+      ("1 + factorial(3)", 7),
+      ("1 + log10(sqrt(4) + 8)", 2)
+    )
+
+    tests.foreach { case (expr, target) =>
+      s"eval(${expr})" should s"be ${target}" in {
+        val v = eval(expr)
+        assert(v.nonEmpty)
+        v.get should be(target)
+      }
+    }
+  }
+
+  // test compile()
+  {
+    "compile()" should "produce L1 / L2 => log10(1) / log10(2)" in {
+      ArithSolver.compile("L1 / L2") should be ("log10(1) / log10(2)")
+    }
+
+    it should "produce (L0) / L(L(0 * L0)) => (log10(0)) / log10(log10(0 * log10(0)))" in {
+      ArithSolver.compile("(L0) / L(L(0 * L0))") should be ("(log10(0)) / log10((log10((0 * log10(0)))))")
+    }
+  }
+
+  // test solve()
+  {
+    for (x <- 0 to 10) {
+      "ArithSolver" should s"be able to solve: ${x} ${x} ${x} = 6" in {
+        val s = solve(s"x=${x}", "xxx", 6, "+-*/", "√!L", true, true)
+        s.size should be > 0
+        println(s.map(_ + " = 6").mkString("\n"))
       }
     }
   }

@@ -1,4 +1,7 @@
+import gnu.jel.{CompilationException, CompiledExpression, Evaluator, Library}
+
 import scala.collection.mutable
+import scala.util.control.Breaks
 
 /**
   * Created by pzy on 7/2/16.
@@ -187,13 +190,13 @@ object ArithSolver extends App {
     } else if (isUnaryOp(expr(0))) {
       val funcs = Map(
         '~' -> "-",
-        '√' -> "Math.sqrt",
+        '√' -> "sqrt",
         '!'-> "factorial",
-        'L'-> "Math.log10"
+        'L'-> "log10"
       )
 
       val end = findExprEnd(expr.substring(1))
-      funcs.get(expr(0)) + "(" + compile(expr.substring(1)) + ")" +
+      funcs.get(expr(0)).get + "(" + compile(expr.substring(1, 1 + end)) + ")" +
         compile(expr.substring(1 + end))
     } else {
       expr.substring(0, 1) + compile(expr.substring(1))
@@ -205,4 +208,98 @@ object ArithSolver extends App {
       val parts = init.split("=")
       (parts(0)(0) -> parts(1))
     }).toMap[Char, String]
+
+  def eval(expr: String): Option[Double] = {
+    // Set up the library
+    val staticLib = Array[java.lang.Class[_]](
+      //Class.forName("java.lang.Math"),
+      Class.forName("net.toolmx.arith.MyMath")
+    )
+    val lib: Library = new Library(staticLib, null, null, null, null)
+    try {
+      //lib.markStateDependent("random", null)
+    } catch {
+      case e: NoSuchElementException => {}
+      // Can't be also
+    }
+
+    // Compile
+    var expr_c: CompiledExpression = null
+    try {
+      expr_c = Evaluator.compile(expr, lib)
+    } catch  {
+      case ce: CompilationException => {
+        System.err.print("–––COMPILATION ERROR :")
+        System.err.println(ce.getMessage())
+        System.err.print("                       ")
+        System.err.println(expr)
+        val column = ce.getColumn(); // Column, where error was found
+        for (i <- 0 until column + 23 - 1)
+          System.err.print(' ')
+        System.err.println('^')
+        Option.empty[Int]
+      }
+    }
+
+    try {
+      val v = expr_c.evaluate(null)
+      if (v.isInstanceOf[Double])
+        Option(v.asInstanceOf[Double])
+      else
+        Option(v.asInstanceOf[Int].toDouble)
+    } catch {
+      // ArithmeticException, divide by zero
+      case e: Throwable => {
+//        System.err.println(s"failed to eval: { ${expr} }, ${e.getMessage}")
+        Option.empty[Double]
+      }
+    }
+  }
+
+  def permutator[T](arr: Array[T]): Array[Array[T]] = {
+    // TODO not implemmented
+    Array.empty[Array[T]]
+  }
+
+  /**
+    * TODO pick most simple answer: * L(√10) * 10 + L10 = 6
+    *
+    * @param inits
+    * @param operands
+    * @param target
+    * @param binOps
+    * @param unaryOps
+    * @param withParentheses
+    * @param allowReorder
+    * @return
+    */
+  def solve(inits: String, operands: String, target: Int,
+            binOps: String, unaryOps: String,
+            withParentheses: Boolean, allowReorder: Boolean): Array[String] = {
+    val vars = parseVars(inits)
+    val permutations = Array(operands)
+    for (opds <- permutations) {
+      val exprs = gen3(opds, binOps.toCharArray, unaryOps.toCharArray,
+        withParentheses).map(e => substituteVars(e, vars))
+
+      val results = mutable.ArrayBuilder.make[String]
+
+      val mybreaks = new Breaks
+      import mybreaks.{break, breakable}
+      breakable {
+        for (expr <- exprs) {
+          val v = eval(compile(expr))
+          if (v.nonEmpty && v.get == target) {
+            results += expr
+            break
+          }
+        }
+      }
+
+      if (results.result().nonEmpty)
+        return results.result()
+    }
+
+    return Array.empty[String]
+  }
 }
