@@ -779,7 +779,7 @@ function solveTest() {
   console.log('\n5 5 5 1 => 25')
   console.assert(solve('x=5;y=1', 'xxxy', 25, binOps, unaryOpsNon, 1, 0).length > 0)
 
-  console.log('\n3 3 8 8 => 24')
+  console.log('\n3 3 3 8 => 24')
   console.assert(solve('x=3;y=8', 'xxyx', 24, binOps, unaryOpsNon, 1, 0).length > 0)
 
   console.log('\n2 3 4 5 => 24')
